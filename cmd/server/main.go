@@ -70,12 +70,18 @@ func incorrectMetricRq(res http.ResponseWriter, req *http.Request) {
 	http.Error(res, "Incorrect update metric request!", http.StatusBadRequest)
 }
 
+func notfoundMetricRq(res http.ResponseWriter, req *http.Request) {
+	http.Error(res, "Metric not found!", http.StatusNotFound)
+}
+
 func main() {
 	ms.NewMemStorage()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/update/gauge/{name}/{value}", gaugeMetric)
 	mux.HandleFunc("/update/counter/{name}/{value}", counterMetric)
+	mux.HandleFunc("/update/gauge/", notfoundMetricRq)
+	mux.HandleFunc("/update/counter/", notfoundMetricRq)
 	mux.HandleFunc("/update/", incorrectMetricRq)
 
 	err := http.ListenAndServe("localhost:8080", mux)
