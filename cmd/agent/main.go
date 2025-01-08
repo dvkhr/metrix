@@ -10,13 +10,6 @@ import (
 	"github.com/dvkhr/metrix.git/internal/metric"
 )
 
-type MetricType string
-
-const (
-	GaugeMetric   = MetricType("gauge")
-	CounterMetric = MetricType("counter")
-)
-
 func main() {
 
 	var mStor metric.MemStorage
@@ -34,14 +27,14 @@ func main() {
 			fmt.Printf("+++Send metrics to server+++\n")
 
 			for mtrxName, mtrxVal := range mStor.AllCounterMetrics() {
-				err := callURL(cl, buildMetricURL("counter", mtrxName, fmt.Sprintf("%v", mtrxVal)))
+				err := callURL(cl, buildMetricURL(metric.CounterMetric, mtrxName, fmt.Sprintf("%v", mtrxVal)))
 				if err != nil {
 					continue
 				}
 			}
 
 			for mtrxName, mtrxVal := range mStor.AllGaugeMetrics() {
-				err := callURL(cl, buildMetricURL("gauge", mtrxName, fmt.Sprintf("%v", mtrxVal)))
+				err := callURL(cl, buildMetricURL(metric.GaugeMetric, mtrxName, fmt.Sprintf("%v", mtrxVal)))
 				if err != nil {
 					continue
 				}
@@ -53,11 +46,11 @@ func main() {
 	}
 }
 
-func buildMetricURL(mType string, mName string, mValue string) string {
+func buildMetricURL(mType metric.MetricType, mName string, mValue string) string {
 	serverUrl := &url.URL{
 		Scheme: "http",
 		Host:   "localhost:8080",
-		Path:   fmt.Sprintf("update/%s/%s/%s", mType, mName, mValue),
+		Path:   fmt.Sprintf("update/%s/%s/%s", string(mType), mName, mValue),
 	}
 
 	return serverUrl.String()

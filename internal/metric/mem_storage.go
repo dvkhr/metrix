@@ -6,6 +6,13 @@ import (
 	"runtime"
 )
 
+type MetricType string
+
+const (
+	GaugeMetric   = MetricType("gauge")
+	CounterMetric = MetricType("counter")
+)
+
 type MemStorage struct {
 	gauge   map[string]float64
 	counter map[string]int64
