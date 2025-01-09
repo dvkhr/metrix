@@ -39,7 +39,7 @@ func main() {
 					continue
 				}
 			}
-
+			mStor.ResetCounterMetrics()
 			iteration = 0
 		}
 		time.Sleep(2 * time.Second)
