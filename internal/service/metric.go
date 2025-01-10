@@ -1,11 +1,26 @@
 package metric
 
 import (
+	"errors"
 	"math/rand"
 	"runtime"
 
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
+
+type Metric string
+
+const (
+	GaugeMetric   Metric = "gauge"
+	CounterMetric Metric = "counter"
+)
+
+var ErrUninitializedStorage = errors.New("storage is not initialized")
+var ErrInvalidMetricName = errors.New("invalid metric name")
+var ErrUnkonownMetric = errors.New("unknown metric")
+
+type GaugeMetricValue float64
+type CounterMetricValue int64
 
 type MetricStorage interface {
 	PutGaugeMetric(metricName string, metricValue storage.GaugeMetricValue) error
