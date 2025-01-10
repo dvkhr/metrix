@@ -8,62 +8,52 @@ import (
 	"time"
 
 	"github.com/dvkhr/metrix.git/internal/metric"
+	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
 func main() {
 
-	var mStor metric.MemStorage
+	var mStor storage.MemStorage
 	mStor.NewMemStorage()
 
 	iteration := 0
 
-	cl := &http.Client{}
+	cl := &http.Client{Timeout: 5 * time.Second}
 
 	for {
 		iteration++
-		mStor.CollectMetrics()
+		metric.CollectMetrics(&mStor)
 
 		if iteration >= 5 {
 			fmt.Printf("+++Send metrics to server+++\n")
-
-			for mtrxName, mtrxVal := range mStor.AllCounterMetrics() {
-				err := callURL(cl, buildMetricURL(metric.CounterMetric, mtrxName, fmt.Sprintf("%v", mtrxVal)))
-				if err != nil {
-					continue
+			metricStrings, err := mStor.MetricStrings()
+			if err == nil {
+				for _, metricString := range metricStrings {
+					err := callURL(cl, buildMetricURL(metricString))
+					if err != nil {
+						continue
+					}
 				}
-			}
 
-			for mtrxName, mtrxVal := range mStor.AllGaugeMetrics() {
-				err := callURL(cl, buildMetricURL(metric.GaugeMetric, mtrxName, fmt.Sprintf("%v", mtrxVal)))
-				if err != nil {
-					continue
-				}
 			}
-			mStor.ResetCounterMetrics()
 			iteration = 0
 		}
 		time.Sleep(2 * time.Second)
 	}
 }
 
-func buildMetricURL(mType metric.MetricType, mName string, mValue string) string {
+func buildMetricURL(metricString string) string {
 	serverUrl := &url.URL{
 		Scheme: "http",
 		Host:   "localhost:8080",
-		Path:   fmt.Sprintf("update/%s/%s/%s", string(mType), mName, mValue),
+		Path:   fmt.Sprintf("update/%s", metricString),
 	}
 
 	return serverUrl.String()
 }
 
 func callURL(cl *http.Client, url string) error {
-	req, err := http.NewRequest("POST", url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Content-Type", "text/plain")
-
-	res, err := cl.Do(req)
+	res, err := cl.Post(url, "text/plain", nil)
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,7 @@ package storage
 import (
 	"fmt"
 
-	metric "github.com/dvkhr/metrix.git/internal/service"
+	"github.com/dvkhr/metrix.git/internal/metric"
 )
 
 type MemStorage struct {

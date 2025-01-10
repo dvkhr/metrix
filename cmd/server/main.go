@@ -6,9 +6,10 @@ import (
 	"strconv"
 
 	"github.com/dvkhr/metrix.git/internal/metric"
+	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-var ms metric.MemStorage
+var ms storage.MemStorage
 
 func gaugeMetric(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
@@ -30,7 +31,7 @@ func gaugeMetric(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Incorrect value!", http.StatusBadRequest)
 		return
 	}
-	ms.PutGaugeMetric(req.PathValue("name"), v)
+	ms.PutGaugeMetric(req.PathValue("name"), metric.GaugeMetricValue(v))
 
 	/*Debug output*/
 	sv, _ = ms.GetGaugeMetric(n)
@@ -58,7 +59,7 @@ func counterMetric(res http.ResponseWriter, req *http.Request) {
 		http.Error(res, "Incorrect value!", http.StatusBadRequest)
 		return
 	}
-	ms.PutCounterMetric(req.PathValue("name"), v)
+	ms.PutCounterMetric(req.PathValue("name"), metric.CounterMetricValue(v))
 
 	/*Debug output*/
 	sv, _ = ms.GetCounterMetric(n)

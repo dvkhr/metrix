@@ -5,7 +5,7 @@ import (
 	"sort"
 	"testing"
 
-	metric "github.com/dvkhr/metrix.git/internal/service"
+	"github.com/dvkhr/metrix.git/internal/metric"
 )
 
 func TestMemStorage_NewMemStorage(t *testing.T) {
