@@ -57,5 +57,5 @@ func CollectMetrics(ms MetricStorage) {
 	ms.PutGaugeMetric("Sys", GaugeMetricValue(rtm.Sys))
 	ms.PutGaugeMetric("TotalAlloc", GaugeMetricValue(rtm.TotalAlloc))
 	ms.PutGaugeMetric("RandomValue", GaugeMetricValue(rand.Float64()))
-	ms.PutCounterMetric("PollCount", CounterMetricValue(rand.Float64()))
+	ms.PutCounterMetric("PollCount", CounterMetricValue(1))
 }

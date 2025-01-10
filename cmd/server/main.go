@@ -5,19 +5,27 @@ import (
 
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/storage"
+	"github.com/go-chi/chi/v5"
 )
 
 func main() {
 	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{})
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/update/gauge/{name}/{value}", MetricServer.HandlePutGaugeMetric)
-	mux.HandleFunc("/update/counter/{name}/{value}", MetricServer.HandlePutCounterMetric)
-	mux.HandleFunc("/update/gauge/", MetricServer.NotfoundMetricRq)
-	mux.HandleFunc("/update/counter/", MetricServer.NotfoundMetricRq)
-	mux.HandleFunc("/update/", MetricServer.IncorrectMetricRq)
-
-	err := http.ListenAndServe("localhost:8080", mux)
+	r := chi.NewRouter()
+	r.Get("/", MetricServer.HandleGetAllMetrics)
+	r.Get("/value/{type}/{name}", MetricServer.HandleGetMetric)
+	//})
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/", MetricServer.IncorrectMetricRq)
+		r.Route("/gauge", func(r chi.Router) {
+			r.Post("/", MetricServer.NotfoundMetricRq)
+			r.Post("/{name}/{value}", MetricServer.HandlePutGaugeMetric)
+		})
+		r.Route("/counter", func(r chi.Router) {
+			r.Post("/", MetricServer.NotfoundMetricRq)
+			r.Post("/{name}/{value}", MetricServer.HandlePutCounterMetric)
+		})
+	})
+	err := http.ListenAndServe("localhost:8080", r)
 	if err != nil {
 		panic(err)
 	}
