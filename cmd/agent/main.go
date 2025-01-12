@@ -20,8 +20,7 @@ type Config struct {
 	pollInterval   int64
 }
 
-func main() {
-	var cfg Config
+func (cfg *Config) parseFlags() {
 	flag.StringVar(&cfg.serverAddress, "a", "localhost:8080", "Endpoint HTTP-server")
 	flag.Int64Var(&cfg.reportInterval, "r", 10, "Frequency of sending metrics in seconds")
 	flag.Int64Var(&cfg.pollInterval, "p", 2, "Frequency of metric polling in seconds")
@@ -35,6 +34,10 @@ func main() {
 	if envVarPoll := os.Getenv("POLL_INTERVAL"); envVarPoll != "" {
 		cfg.pollInterval, _ = strconv.ParseInt(envVarPoll, 10, 64)
 	}
+}
+func main() {
+	var cfg Config
+	cfg.parseFlags()
 
 	var mStor storage.MemStorage
 	mStor.NewMemStorage()
@@ -73,7 +76,6 @@ func buildMetricURL(serverAddress string, metricString string) string {
 		Host:   fmt.Sprint(serverAddress), //"localhost:8080",
 		Path:   fmt.Sprintf("update/%s", metricString),
 	}
-
 	return serverURL.String()
 }
 
