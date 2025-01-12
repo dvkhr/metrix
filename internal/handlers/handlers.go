@@ -128,7 +128,7 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-	tmpl, err := template.ParseFiles("internal/handlers/index.html.tmpl")
+	tmpl, err := template.ParseFiles("index.html.tmpl")
 	if err != nil {
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
