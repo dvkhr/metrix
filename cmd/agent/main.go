@@ -43,13 +43,13 @@ func main() {
 }
 
 func buildMetricURL(metricString string) string {
-	serverUrl := &url.URL{
+	serverURL := &url.URL{
 		Scheme: "http",
 		Host:   "localhost:8080",
 		Path:   fmt.Sprintf("update/%s", metricString),
 	}
 
-	return serverUrl.String()
+	return serverURL.String()
 }
 
 func callURL(cl *http.Client, url string) error {

@@ -86,7 +86,7 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 }
 
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
-	http.Error(res, "Incorrect update metric request!", http.StatusNotFound)
+	http.Error(res, "Incorrect update metric request!", http.StatusBadRequest)
 }
 
 func (ms *MetricsServer) NotfoundMetricRq(res http.ResponseWriter, req *http.Request) {
