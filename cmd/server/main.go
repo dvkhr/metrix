@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"net/http"
 
 	"github.com/dvkhr/metrix.git/internal/handlers"
@@ -9,6 +10,9 @@ import (
 )
 
 func main() {
+	netAddress := flag.String("a", "localhost:8080", "Endpoint HTTP-server")
+	flag.Parse()
+
 	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{})
 	r := chi.NewRouter()
 	r.Get("/", MetricServer.HandleGetAllMetrics)
@@ -24,7 +28,7 @@ func main() {
 			r.Post("/{name}/{value}", MetricServer.HandlePutCounterMetric)
 		})
 	})
-	err := http.ListenAndServe("localhost:8080", r)
+	err := http.ListenAndServe(*netAddress, r)
 	if err != nil {
 		panic(err)
 	}

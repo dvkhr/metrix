@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,40 +13,56 @@ import (
 )
 
 func main() {
+	serverAddress := flag.String("a", "localhost:8080", "Endpoint HTTP-server")
+	reportInterval := flag.Int64("r", 10, "Frequency of sending metrics in seconds")
+	pollInterval := flag.Int64("p", 2, "Frequency of metric polling in seconds")
+	flag.Parse()
+	if *serverAddress == "" {
+		*serverAddress = "localhost:8080"
+
+	}
+	if *reportInterval == 0 {
+		*reportInterval = 10
+	}
+	if *pollInterval == 0 {
+		*pollInterval = 2
+	}
 
 	var mStor storage.MemStorage
 	mStor.NewMemStorage()
 
-	iteration := 0
-
 	cl := &http.Client{Timeout: 5 * time.Second}
 
+	var collectInterval, sendInterval time.Time
 	for {
-		iteration++
-		metric.CollectMetrics(&mStor)
+		if collectInterval.IsZero() ||
+			time.Since(collectInterval) >= time.Duration(*pollInterval)*time.Second {
+			metric.CollectMetrics(&mStor)
+			collectInterval = time.Now()
+		}
 
-		if iteration >= 5 {
+		if sendInterval.IsZero() ||
+			time.Since(sendInterval) >= time.Duration(*reportInterval)*time.Second {
 			fmt.Printf("+++Send metrics to server+++\n")
 			metricStrings, err := mStor.MetricStrings()
 			if err == nil {
 				for _, metricString := range metricStrings {
-					err := callURL(cl, buildMetricURL(metricString))
+					err := callURL(cl, buildMetricURL(*serverAddress, metricString))
 					if err != nil {
 						continue
 					}
 				}
-
 			}
-			iteration = 0
+			sendInterval = time.Now()
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(time.Duration(*pollInterval) * time.Second)
 	}
 }
 
-func buildMetricURL(metricString string) string {
+func buildMetricURL(serverAddress string, metricString string) string {
 	serverURL := &url.URL{
 		Scheme: "http",
-		Host:   "localhost:8080",
+		Host:   fmt.Sprint(serverAddress), //"localhost:8080",
 		Path:   fmt.Sprintf("update/%s", metricString),
 	}
 
