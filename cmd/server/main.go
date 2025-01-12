@@ -12,7 +12,6 @@ import (
 func main() {
 	netAddress := flag.String("a", "localhost:8080", "Endpoint HTTP-server")
 	flag.Parse()
-
 	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{})
 	r := chi.NewRouter()
 	r.Get("/", MetricServer.HandleGetAllMetrics)
