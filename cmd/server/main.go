@@ -13,9 +13,8 @@ func main() {
 	r := chi.NewRouter()
 	r.Get("/", MetricServer.HandleGetAllMetrics)
 	r.Get("/value/{type}/{name}", MetricServer.HandleGetMetric)
-	//})
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", MetricServer.IncorrectMetricRq)
+		r.Post("/*", MetricServer.IncorrectMetricRq)
 		r.Route("/gauge", func(r chi.Router) {
 			r.Post("/", MetricServer.NotfoundMetricRq)
 			r.Post("/{name}/{value}", MetricServer.HandlePutGaugeMetric)
