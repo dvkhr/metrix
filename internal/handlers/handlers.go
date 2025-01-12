@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"text/template"
 
@@ -130,16 +131,19 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 	}
 	tmpl, err := template.ParseFiles("index.html.tmpl")
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	mtrx, err := ms.MetricStorage.AllMetrics()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	err = tmpl.Execute(res, *mtrx)
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
