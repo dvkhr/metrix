@@ -90,3 +90,10 @@ func (ms *MemStorage) MetricStrings() ([]string, error) {
 
 	return metricStrings, nil
 }
+
+func (ms *MemStorage) AllMetrics() (*map[string]interface{}, error) {
+	if ms.data == nil {
+		return nil, metric.ErrUninitializedStorage
+	}
+	return &ms.data, nil
+}

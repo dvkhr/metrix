@@ -15,7 +15,7 @@ type MetricStorage interface {
 	PutCounterMetric(metricName string, metricValue metric.CounterMetricValue) error
 	GetGaugeMetric(metricName string) (metric.GaugeMetricValue, error)
 	GetCounterMetric(metricName string) (metric.CounterMetricValue, error)
-	MetricStrings() ([]string, error)
+	AllMetrics() (*map[string]interface{}, error)
 
 	NewMemStorage()
 }
@@ -124,37 +124,23 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 	}
 }
 func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
-	const htmlTemplate = `
-<!DOCTYPE html>
-<html>
-<head>
-	<meta charset="UTF-8">
-	<title>Metrics</title>
-</head>
-<body>
-	<table border="1">
-		<tr>
-			<th>Metric</th>
-		</tr>
-		{{range .}}
-			<tr>
-				<td>{{.}}</td>
-			</tr>
-		{{end}}
-	</table>
-</body>
-</html>
-	`
-
-	metricStrings, err := ms.MetricStorage.MetricStrings()
-	if err != nil {
-		http.Error(res, "Metrics not found!", http.StatusNotFound)
+	if req.Method != http.MethodGet {
+		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
+		return
 	}
-
-	tmpl, err := template.New("allMetrics").Parse(htmlTemplate)
+	tmpl, err := template.ParseFiles("internal/handlers/index.html.tmpl")
 	if err != nil {
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
 	}
-
-	tmpl.ExecuteTemplate(res, "allMetrics", metricStrings)
+	mtrx, err := ms.MetricStorage.AllMetrics()
+	if err != nil {
+		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	err = tmpl.Execute(res, *mtrx)
+	if err != nil {
+		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
 }
