@@ -16,7 +16,7 @@ type MetricStorage interface {
 	PutCounterMetric(metricName string, metricValue metric.CounterMetricValue) error
 	GetGaugeMetric(metricName string) (metric.GaugeMetricValue, error)
 	GetCounterMetric(metricName string) (metric.CounterMetricValue, error)
-	AllMetrics() (*map[string]interface{}, error)
+	AllMetrics() (*map[string]string, error)
 
 	NewMemStorage()
 }
