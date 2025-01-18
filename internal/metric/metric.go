@@ -2,7 +2,9 @@ package metric
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
+	"os"
 	"runtime"
 )
 
@@ -28,34 +30,47 @@ type MetricStorage interface {
 func CollectMetrics(ms MetricStorage) {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
+	collectMetric := func(metricType Metric, metricName string, metricValue any) {
+		var err error
+		switch metricType {
+		case GaugeMetric:
+			err = ms.PutGaugeMetric(metricName, metricValue.(GaugeMetricValue))
+		case CounterMetric:
+			err = ms.PutCounterMetric(metricName, metricValue.(CounterMetricValue))
+		}
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "ERROR: collecting %s metric %s:%v\n", metricType, metricName, err)
+		}
+	}
 
-	ms.PutGaugeMetric("Alloc", GaugeMetricValue(rtm.Alloc))
-	ms.PutGaugeMetric("BuckHashSys", GaugeMetricValue(rtm.BuckHashSys))
-	ms.PutGaugeMetric("Frees", GaugeMetricValue(rtm.Frees))
-	ms.PutGaugeMetric("GCCPUFraction", GaugeMetricValue(rtm.GCCPUFraction))
-	ms.PutGaugeMetric("GCSys", GaugeMetricValue(rtm.GCSys))
-	ms.PutGaugeMetric("HeapAlloc", GaugeMetricValue(rtm.HeapAlloc))
-	ms.PutGaugeMetric("HeapIdle", GaugeMetricValue(rtm.HeapIdle))
-	ms.PutGaugeMetric("HeapInuse", GaugeMetricValue(rtm.HeapInuse))
-	ms.PutGaugeMetric("HeapObjects", GaugeMetricValue(rtm.HeapObjects))
-	ms.PutGaugeMetric("HeapReleased", GaugeMetricValue(rtm.HeapReleased))
-	ms.PutGaugeMetric("HeapSys", GaugeMetricValue(rtm.HeapSys))
-	ms.PutGaugeMetric("LastGC", GaugeMetricValue(rtm.LastGC))
-	ms.PutGaugeMetric("Lookups", GaugeMetricValue(rtm.Lookups))
-	ms.PutGaugeMetric("MCacheInuse", GaugeMetricValue(rtm.MCacheInuse))
-	ms.PutGaugeMetric("MCacheSys", GaugeMetricValue(rtm.MCacheSys))
-	ms.PutGaugeMetric("MSpanInuse", GaugeMetricValue(rtm.MSpanInuse))
-	ms.PutGaugeMetric("MSpanSys", GaugeMetricValue(rtm.MSpanSys))
-	ms.PutGaugeMetric("Mallocs", GaugeMetricValue(rtm.Mallocs))
-	ms.PutGaugeMetric("NextGC", GaugeMetricValue(rtm.NextGC))
-	ms.PutGaugeMetric("NumForcedGC", GaugeMetricValue(rtm.NumForcedGC))
-	ms.PutGaugeMetric("NumGC", GaugeMetricValue(rtm.NumGC))
-	ms.PutGaugeMetric("OtherSys", GaugeMetricValue(rtm.OtherSys))
-	ms.PutGaugeMetric("PauseTotalNs", GaugeMetricValue(rtm.PauseTotalNs))
-	ms.PutGaugeMetric("StackInuse", GaugeMetricValue(rtm.StackInuse))
-	ms.PutGaugeMetric("StackSys", GaugeMetricValue(rtm.StackSys))
-	ms.PutGaugeMetric("Sys", GaugeMetricValue(rtm.Sys))
-	ms.PutGaugeMetric("TotalAlloc", GaugeMetricValue(rtm.TotalAlloc))
-	ms.PutGaugeMetric("RandomValue", GaugeMetricValue(rand.Float64()))
-	ms.PutCounterMetric("PollCount", CounterMetricValue(1))
+	collectMetric(GaugeMetric, "Alloc", GaugeMetricValue(rtm.Alloc))
+	collectMetric(GaugeMetric, "BuckHashSys", GaugeMetricValue(rtm.BuckHashSys))
+	collectMetric(GaugeMetric, "Frees", GaugeMetricValue(rtm.Frees))
+	collectMetric(GaugeMetric, "GCCPUFraction", GaugeMetricValue(rtm.GCCPUFraction))
+	collectMetric(GaugeMetric, "GCSys", GaugeMetricValue(rtm.GCSys))
+	collectMetric(GaugeMetric, "HeapAlloc", GaugeMetricValue(rtm.HeapAlloc))
+	collectMetric(GaugeMetric, "HeapIdle", GaugeMetricValue(rtm.HeapIdle))
+	collectMetric(GaugeMetric, "HeapInuse", GaugeMetricValue(rtm.HeapInuse))
+	collectMetric(GaugeMetric, "HeapObjects", GaugeMetricValue(rtm.HeapObjects))
+	collectMetric(GaugeMetric, "HeapReleased", GaugeMetricValue(rtm.HeapReleased))
+	collectMetric(GaugeMetric, "HeapSys", GaugeMetricValue(rtm.HeapSys))
+	collectMetric(GaugeMetric, "LastGC", GaugeMetricValue(rtm.LastGC))
+	collectMetric(GaugeMetric, "Lookups", GaugeMetricValue(rtm.Lookups))
+	collectMetric(GaugeMetric, "MCacheInuse", GaugeMetricValue(rtm.MCacheInuse))
+	collectMetric(GaugeMetric, "MCacheSys", GaugeMetricValue(rtm.MCacheSys))
+	collectMetric(GaugeMetric, "MSpanInuse", GaugeMetricValue(rtm.MSpanInuse))
+	collectMetric(GaugeMetric, "MSpanSys", GaugeMetricValue(rtm.MSpanSys))
+	collectMetric(GaugeMetric, "Mallocs", GaugeMetricValue(rtm.Mallocs))
+	collectMetric(GaugeMetric, "NextGC", GaugeMetricValue(rtm.NextGC))
+	collectMetric(GaugeMetric, "NumForcedGC", GaugeMetricValue(rtm.NumForcedGC))
+	collectMetric(GaugeMetric, "NumGC", GaugeMetricValue(rtm.NumGC))
+	collectMetric(GaugeMetric, "OtherSys", GaugeMetricValue(rtm.OtherSys))
+	collectMetric(GaugeMetric, "PauseTotalNs", GaugeMetricValue(rtm.PauseTotalNs))
+	collectMetric(GaugeMetric, "StackInuse", GaugeMetricValue(rtm.StackInuse))
+	collectMetric(GaugeMetric, "StackSys", GaugeMetricValue(rtm.StackSys))
+	collectMetric(GaugeMetric, "Sys", GaugeMetricValue(rtm.Sys))
+	collectMetric(GaugeMetric, "TotalAlloc", GaugeMetricValue(rtm.TotalAlloc))
+	collectMetric(GaugeMetric, "RandomValue", GaugeMetricValue(rand.Float64()))
+
+	collectMetric(CounterMetric, "PollCount", CounterMetricValue(1))
 }
