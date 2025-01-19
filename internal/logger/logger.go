@@ -1,12 +1,22 @@
 package logger
 
 import (
-	"log/slog"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 )
 
-var logg slog.Logger
+var Sugar zap.SugaredLogger
+
+func init() {
+	logg, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+	defer logg.Sync()
+	Sugar = *logg.Sugar()
+}
 
 type (
 	responseData struct {
@@ -30,7 +40,7 @@ func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.responseData.status = statusCode
 }
 
-func WithLogging(h http.Handler) http.Handler {
+func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 	logFn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 
@@ -45,8 +55,7 @@ func WithLogging(h http.Handler) http.Handler {
 		h.ServeHTTP(&lw, r)
 		duration := time.Since(start)
 
-		logg.Info(
-			"Received HTTP request",
+		Sugar.Infoln(
 			"uri", r.RequestURI,
 			"method", r.Method,
 			"status", responseData.status,

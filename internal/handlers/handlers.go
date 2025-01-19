@@ -39,22 +39,12 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 		http.Error(res, "Incorrect name!", http.StatusNotFound)
 		return
 	}
-
-	/*Debug output*/
-	sv, _ := ms.MetricStorage.GetGaugeMetric(n)
-	fmt.Printf("BEFORE: Metric %s has value %g\n", n, sv)
-
 	v, err := strconv.ParseFloat(req.PathValue("value"), 64)
 	if err != nil {
 		http.Error(res, "Incorrect value!", http.StatusBadRequest)
 		return
 	}
 	ms.MetricStorage.PutGaugeMetric(req.PathValue("name"), metric.GaugeMetricValue(v))
-
-	/*Debug output*/
-	sv, _ = ms.MetricStorage.GetGaugeMetric(n)
-	fmt.Printf("AFTER: Metric %s has value %v\n", n, sv)
-	res.Write([]byte("Done!"))
 }
 
 func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *http.Request) {
@@ -63,11 +53,6 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 		return
 	}
 	n := req.PathValue("name")
-
-	/*Debug output*/
-	sv, _ := ms.MetricStorage.GetCounterMetric(n)
-	fmt.Printf("BEFORE: Metric %s has value %v\n", n, sv)
-
 	if len(n) == 0 {
 		http.Error(res, "Incorrect name!", http.StatusNotFound)
 		return
@@ -78,11 +63,6 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 		return
 	}
 	ms.MetricStorage.PutCounterMetric(req.PathValue("name"), metric.CounterMetricValue(v))
-
-	/*Debug output*/
-	sv, _ = ms.MetricStorage.GetCounterMetric(n)
-	fmt.Printf("AFTER: Metric %s has value %v\n", n, sv)
-	res.Write([]byte("Done!"))
 }
 
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
