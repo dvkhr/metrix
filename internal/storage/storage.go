@@ -90,3 +90,14 @@ func (ms *MemStorage) MetricStrings() ([]string, error) {
 
 	return metricStrings, nil
 }
+
+func (ms *MemStorage) AllMetrics() (*map[string]string, error) {
+	if ms.data == nil {
+		return nil, metric.ErrUninitializedStorage
+	}
+	res := make(map[string]string, len(ms.data))
+	for metricName, metricValue := range ms.data {
+		res[metricName] = fmt.Sprintf("%v", metricValue)
+	}
+	return &res, nil
+}
