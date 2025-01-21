@@ -16,7 +16,6 @@ type MetricStorage interface {
 	GetGaugeMetric(metricName string) (metric.GaugeMetricValue, error)
 	GetCounterMetric(metricName string) (metric.CounterMetricValue, error)
 	MetricStrings() ([]string, error)
-
 	NewMemStorage()
 }
 
@@ -45,6 +44,8 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 		return
 	}
 	ms.MetricStorage.PutGaugeMetric(req.PathValue("name"), metric.GaugeMetricValue(v))
+	res.WriteHeader(http.StatusOK)
+
 }
 
 func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *http.Request) {
@@ -63,6 +64,7 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 		return
 	}
 	ms.MetricStorage.PutCounterMetric(req.PathValue("name"), metric.CounterMetricValue(v))
+	res.WriteHeader(http.StatusOK)
 }
 
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
@@ -137,4 +139,5 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 	}
 
 	tmpl.ExecuteTemplate(res, "allMetrics", metricStrings)
+	res.WriteHeader(http.StatusOK)
 }
