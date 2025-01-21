@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"net/http"
+	"os"
 
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logger"
@@ -11,7 +12,6 @@ import (
 )
 
 func main() {
-
 	netAddress := flag.String("a", "localhost:8080", "Endpoint HTTP-server")
 	flag.Parse()
 	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{})
