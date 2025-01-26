@@ -8,41 +8,49 @@ import (
 	"runtime"
 )
 
-type Metric string
+type MetricType string
 
 const (
-	GaugeMetric   Metric = "gauge"
-	CounterMetric Metric = "counter"
+	GaugeMetric   MetricType = "gauge"
+	CounterMetric MetricType = "counter"
 )
+
+type GaugeMetricValue float64
+type CounterMetricValue int64
+
+type Metrics struct {
+	ID    string              `json:"id"`              // имя метрики
+	MType MetricType          `json:"type"`            // параметр, принимающий значение gauge или counter
+	Delta *CounterMetricValue `json:"delta,omitempty"` // значение метрики в случае передачи counter
+	Value *GaugeMetricValue   `json:"value,omitempty"` // значение метрики в случае передачи gauge
+}
 
 var ErrUninitializedStorage = errors.New("storage is not initialized")
 var ErrInvalidMetricName = errors.New("invalid metric name")
 var ErrUnkonownMetric = errors.New("unknown metric")
 
-type GaugeMetricValue float64
-type CounterMetricValue int64
-
 type MetricStorage interface {
-	PutGaugeMetric(metricName string, metricValue GaugeMetricValue) error
-	PutCounterMetric(metricName string, metricValue CounterMetricValue) error
+	PutMetric(mt Metrics) error
 }
 
 func CollectMetrics(ms MetricStorage) {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
-	collectMetric := func(metricType Metric, metricName string, metricValue any) {
-		var err error
+	collectMetric := func(metricType MetricType, metricName string, metricValue any) {
+		var mt Metrics
 		switch metricType {
 		case GaugeMetric:
-			err = ms.PutGaugeMetric(metricName, metricValue.(GaugeMetricValue))
+			temp := metricValue.(GaugeMetricValue)
+			mt = Metrics{ID: metricName, MType: metricType, Value: &temp}
 		case CounterMetric:
-			err = ms.PutCounterMetric(metricName, metricValue.(CounterMetricValue))
+			temp := metricValue.(CounterMetricValue)
+			mt = Metrics{ID: metricName, MType: metricType, Delta: &temp}
 		}
+		err := ms.PutMetric(mt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: collecting %s metric %s:%v\n", metricType, metricName, err)
 		}
 	}
-
 	collectMetric(GaugeMetric, "Alloc", GaugeMetricValue(rtm.Alloc))
 	collectMetric(GaugeMetric, "BuckHashSys", GaugeMetricValue(rtm.BuckHashSys))
 	collectMetric(GaugeMetric, "Frees", GaugeMetricValue(rtm.Frees))

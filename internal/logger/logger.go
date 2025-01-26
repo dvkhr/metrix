@@ -1,6 +1,7 @@
 package logger
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -58,7 +59,7 @@ func WithLogging(h http.HandlerFunc) http.HandlerFunc {
 		Sugar.Infoln(
 			"uri", r.RequestURI,
 			"method", r.Method,
-			"status", responseData.status,
+			"status", fmt.Sprintf("%v: %v", responseData.status, http.StatusText(responseData.status)),
 			"duration", duration,
 			"size", responseData.size,
 		)

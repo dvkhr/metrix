@@ -8,12 +8,18 @@
     <table>
         <tr>
             <th>Name</th>
+            <th>Type</th>
             <th>Value</th>
         </tr>
         {{ range $mName, $mVal := . }}
             <tr>
                 <td>{{ $mName }}</td>
-                <td>{{ $mVal }}</td>
+                <td>{{ $mVal.MType }}</td>
+                {{if eq $mVal.MType "gauge"}}
+                    <td>{{ $mVal.Value }}</td>
+                {{else if eq $mVal.MType "counter"}}
+                    <td>{{ $mVal.Delta }}</td>
+                {{end}}
             </tr>
         {{ end }}
     </table>

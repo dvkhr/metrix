@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -75,13 +78,18 @@ func main() {
 		if sendInterval.IsZero() ||
 			time.Since(sendInterval) >= time.Duration(cfg.reportInterval)*time.Second {
 			fmt.Printf("+++Send metrics to server+++\n")
-			metricStrings, err := mStor.MetricStrings()
+			allMetrics, err := mStor.AllMetrics()
 			if err == nil {
-				for _, metricString := range metricStrings {
-					err := callURL(cl, buildMetricURL(cfg.serverAddress, metricString))
+				for _, metricStruct := range *allMetrics {
+					jsonMetric, err := json.Marshal(metricStruct)
 					if err != nil {
 						continue
 					}
+					err = callURL(cl, buildMetricURL(cfg.serverAddress), bytes.NewBuffer(jsonMetric))
+					if err != nil {
+						continue
+					}
+					mStor.NewMemStorage()
 				}
 			}
 			sendInterval = time.Now()
@@ -90,17 +98,18 @@ func main() {
 	}
 }
 
-func buildMetricURL(serverAddress string, metricString string) string {
+func buildMetricURL(serverAddress string) string {
 	serverURL := &url.URL{
 		Scheme: "http",
-		Host:   fmt.Sprint(serverAddress), //"localhost:8080",
-		Path:   fmt.Sprintf("update/%s", metricString),
+		Host:   fmt.Sprint(serverAddress),
+		Path:   "update/",
 	}
 	return serverURL.String()
 }
 
-func callURL(cl *http.Client, url string) error {
-	res, err := cl.Post(url, "text/plain", nil)
+func callURL(cl *http.Client, url string, bodyJson io.Reader) error {
+
+	res, err := cl.Post(url, "application/json", bodyJson)
 	if err != nil {
 		return err
 	}
