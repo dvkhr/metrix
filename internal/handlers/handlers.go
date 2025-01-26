@@ -43,7 +43,7 @@ func (ms *MetricsServer) HandlePutMetric(res http.ResponseWriter, req *http.Requ
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-	var mTemp *metric.Metrics = &metric.Metrics{}
+	mTemp := &metric.Metrics{}
 	var bufJSON bytes.Buffer
 
 	_, err := bufJSON.ReadFrom(req.Body)
@@ -83,7 +83,7 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-	var mTemp *metric.Metrics = &metric.Metrics{}
+	mTemp := &metric.Metrics{}
 	var bufJSON bytes.Buffer
 
 	_, err := bufJSON.ReadFrom(req.Body)
