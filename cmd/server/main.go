@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/dvkhr/metrix.git/internal/gzip"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logger"
 	"github.com/dvkhr/metrix.git/internal/storage"
@@ -23,7 +24,8 @@ func main() {
 	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{})
 	r := chi.NewRouter()
 
-	r.Get("/", logger.WithLogging(MetricServer.HandleGetAllMetrics))
+	r.Get("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetAllMetrics)))
+	//(MetricServer.HandleGetAllMetrics))
 	r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
 	r.Post("/value/", logger.WithLogging(MetricServer.HandleGetMetricJSON))
 	r.Route("/update", func(r chi.Router) {
@@ -38,13 +40,6 @@ func main() {
 			r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutCounterMetric))
 		})
 	})
-
-	/*	r.Get("/", logger.WithLogging(MetricServer.HandleGetAllMetrics))
-		r.Route("/", func(r chi.Router) {
-			r.Post("/update/", logger.WithLogging(MetricServer.HandlePutMetricJson))
-			r.Post("/value/", logger.WithLogging(MetricServer.HandleGetMetricJson))
-		})
-	*/
 	if err := http.ListenAndServe(*netAddress, r); err != nil {
 		logger.Sugar.Fatalw(err.Error(), "event", "start server")
 	}
