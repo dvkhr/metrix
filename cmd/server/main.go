@@ -24,12 +24,10 @@ func main() {
 	r := chi.NewRouter()
 
 	r.Get("/", logger.WithLogging(MetricServer.HandleGetAllMetrics))
-	r.Route("/value", func(r chi.Router) {
-		r.Get("/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
-		r.Post("/", logger.WithLogging(MetricServer.HandleGetMetricJson))
-	})
+	r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
+	r.Post("/value/", logger.WithLogging(MetricServer.HandleGetMetricJSON))
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(MetricServer.HandlePutMetricJson))
+		r.Post("/", logger.WithLogging(MetricServer.HandlePutMetricJSON))
 		r.Post("/*", logger.WithLogging(MetricServer.IncorrectMetricRq))
 		r.Route("/gauge", func(r chi.Router) {
 			r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
@@ -40,6 +38,13 @@ func main() {
 			r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutCounterMetric))
 		})
 	})
+
+	/*	r.Get("/", logger.WithLogging(MetricServer.HandleGetAllMetrics))
+		r.Route("/", func(r chi.Router) {
+			r.Post("/update/", logger.WithLogging(MetricServer.HandlePutMetricJson))
+			r.Post("/value/", logger.WithLogging(MetricServer.HandleGetMetricJson))
+		})
+	*/
 	if err := http.ListenAndServe(*netAddress, r); err != nil {
 		logger.Sugar.Fatalw(err.Error(), "event", "start server")
 	}

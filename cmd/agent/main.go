@@ -107,9 +107,9 @@ func buildMetricURL(serverAddress string) string {
 	return serverURL.String()
 }
 
-func callURL(cl *http.Client, url string, bodyJson io.Reader) error {
+func callURL(cl *http.Client, url string, bodyJSON io.Reader) error {
 
-	res, err := cl.Post(url, "application/json", bodyJson)
+	res, err := cl.Post(url, "application/json", bodyJSON)
 	if err != nil {
 		return err
 	}
