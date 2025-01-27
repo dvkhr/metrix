@@ -66,6 +66,7 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 }
 
 func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *http.Request) {
+
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -92,7 +93,7 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 }
 
 func (ms *MetricsServer) HandlePutMetricJSON(res http.ResponseWriter, req *http.Request) {
-	res.Header().Add("Content-Type", "application/json")
+	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
@@ -132,7 +133,7 @@ func (ms *MetricsServer) HandlePutMetricJSON(res http.ResponseWriter, req *http.
 }
 
 func (ms *MetricsServer) HandleGetMetricJSON(res http.ResponseWriter, req *http.Request) {
-	res.Header().Add("Content-Type", "application/json")
+	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
@@ -175,6 +176,7 @@ func (ms *MetricsServer) HandleGetMetricJSON(res http.ResponseWriter, req *http.
 }
 
 func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/html")
 	if req.Method != http.MethodGet {
 		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -202,6 +204,7 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 }
 
 func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
+	res.Header().Set("Content-Type", "text/html")
 	if req.Method != http.MethodGet {
 		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
 		return
