@@ -27,17 +27,17 @@ func main() {
 	r.Get("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetAllMetrics)))
 	//(MetricServer.HandleGetAllMetrics))
 	r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
-	r.Post("/value/", logger.WithLogging(MetricServer.HandleGetMetricJSON))
+	r.Post("/value/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetMetricJSON)))
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(MetricServer.HandlePutMetricJSON))
+		r.Post("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandlePutMetricJSON)))
 		r.Post("/*", logger.WithLogging(MetricServer.IncorrectMetricRq))
 		r.Route("/gauge", func(r chi.Router) {
 			r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
-			r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutGaugeMetric))
+			r.Post("/{name}/{value}", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandlePutGaugeMetric)))
 		})
 		r.Route("/counter", func(r chi.Router) {
 			r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
-			r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutCounterMetric))
+			r.Post("/{name}/{value}", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandlePutCounterMetric)))
 		})
 	})
 	if err := http.ListenAndServe(*netAddress, r); err != nil {

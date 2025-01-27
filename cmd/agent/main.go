@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -85,10 +86,41 @@ func main() {
 					if err != nil {
 						continue
 					}
-					err = callURL(cl, buildMetricURL(cfg.serverAddress), bytes.NewBuffer(jsonMetric))
+					var requestBody bytes.Buffer
+					gz := gzip.NewWriter(&requestBody)
+					gz.Write(jsonMetric)
+					gz.Close()
+
+					req, err := http.NewRequest("POST", buildMetricURL(cfg.serverAddress), &requestBody)
 					if err != nil {
-						continue
+						fmt.Println(err)
 					}
+					req.Header.Set("Content-Type", "application/json")
+					req.Header.Set("Accept-Encoding", "gzip")
+					req.Header.Set("Content-Encoding", "gzip")
+					resp, err := cl.Do(req)
+					if err == nil {
+						fmt.Println(resp.StatusCode)
+						defer resp.Body.Close()
+						var reader io.ReadCloser
+						switch resp.Header.Get("Content-Encoding") {
+						case "gzip":
+							reader, err = gzip.NewReader(resp.Body)
+							if err != nil {
+								fmt.Println("FAIL create gzip reader: %w", err)
+							}
+							defer reader.Close()
+						default:
+							reader = resp.Body
+						}
+						body, err := io.ReadAll(reader)
+						if err != nil {
+							fmt.Println("FAIL reader response body: %w", err)
+							return
+						}
+						fmt.Println(string(body))
+					}
+
 					mStor.NewMemStorage()
 				}
 			}
@@ -110,6 +142,8 @@ func buildMetricURL(serverAddress string) string {
 func callURL(cl *http.Client, url string, bodyJSON io.Reader) error {
 
 	res, err := cl.Post(url, "application/json", bodyJSON)
+	res.Header.Set("Accept-Encoding", "gzip")
+	res.Header.Set("Content-Encoding", "gzip")
 	if err != nil {
 		return err
 	}
