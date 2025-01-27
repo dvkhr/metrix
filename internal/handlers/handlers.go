@@ -91,7 +91,7 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 	res.WriteHeader(http.StatusOK)
 }
 
-func (ms *MetricsServer) HandlePutMetricJson(res http.ResponseWriter, req *http.Request) {
+func (ms *MetricsServer) HandlePutMetricJSON(res http.ResponseWriter, req *http.Request) {
 	res.Header().Add("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
@@ -131,7 +131,7 @@ func (ms *MetricsServer) HandlePutMetricJson(res http.ResponseWriter, req *http.
 	res.WriteHeader(http.StatusOK)
 }
 
-func (ms *MetricsServer) HandleGetMetricJson(res http.ResponseWriter, req *http.Request) {
+func (ms *MetricsServer) HandleGetMetricJSON(res http.ResponseWriter, req *http.Request) {
 	res.Header().Add("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
