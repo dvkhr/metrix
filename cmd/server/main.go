@@ -22,27 +22,24 @@ func main() {
 	}
 	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{})
 	r := chi.NewRouter()
-	/*
-		r.Get("/", logger.WithLogging(MetricServer.HandleGetAllMetrics))
-		r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
-		r.Route("/update", func(r chi.Router) {
-			r.Post("/*", logger.WithLogging(MetricServer.IncorrectMetricRq))
-			r.Route("/gauge", func(r chi.Router) {
-				r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
-				r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutGaugeMetric))
-			})
-			r.Route("/counter", func(r chi.Router) {
-				r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
-				r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutCounterMetric))
-			})
-		})
-	*/
-	r.Get("/", logger.WithLogging(MetricServer.HandleGetAllMetrics))
-	r.Route("/", func(r chi.Router) {
-		r.Post("/update/", logger.WithLogging(MetricServer.HandlePutMetric))
-		r.Post("/value/", logger.WithLogging(MetricServer.HandleGetMetric))
-	})
 
+	r.Get("/", logger.WithLogging(MetricServer.HandleGetAllMetrics))
+	r.Route("/value", func(r chi.Router) {
+		r.Get("/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
+		r.Post("/", logger.WithLogging(MetricServer.HandleGetMetricJson))
+	})
+	r.Route("/update", func(r chi.Router) {
+		r.Post("/", logger.WithLogging(MetricServer.HandlePutMetricJson))
+		r.Post("/*", logger.WithLogging(MetricServer.IncorrectMetricRq))
+		r.Route("/gauge", func(r chi.Router) {
+			r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
+			r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutGaugeMetric))
+		})
+		r.Route("/counter", func(r chi.Router) {
+			r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
+			r.Post("/{name}/{value}", logger.WithLogging(MetricServer.HandlePutCounterMetric))
+		})
+	})
 	if err := http.ListenAndServe(*netAddress, r); err != nil {
 		logger.Sugar.Fatalw(err.Error(), "event", "start server")
 	}
