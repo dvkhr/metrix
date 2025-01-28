@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -228,4 +229,34 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 		return
 	}
 	res.WriteHeader(http.StatusOK)
+}
+
+func DumpMetrics(ms *MetricsServer, wr io.Writer) error {
+
+	mtrx, err := ms.MetricStorage.AllMetrics()
+	if err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(mtrx, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = wr.Write(data)
+	return err
+}
+func RestoreMetrics(ms *MetricsServer, rd io.Reader) error {
+	var data []byte
+
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		return err
+	}
+
+	stor, err := ms.MetricStorage.AllMetrics()
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, stor)
+
+	return err
 }
