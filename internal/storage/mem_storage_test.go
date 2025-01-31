@@ -3,12 +3,12 @@ package storage
 import (
 	"testing"
 
-	"github.com/dvkhr/metrix.git/internal/metric"
+	"github.com/dvkhr/metrix.git/internal/service"
 )
 
 func TestMemStorage_NewMemStorage(t *testing.T) {
 	type fields struct {
-		data map[string]metric.Metrics
+		data map[string]service.Metrics
 	}
 	tests := []struct {
 		name   string

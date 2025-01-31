@@ -7,28 +7,39 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"sync"
 	"text/template"
+	"time"
 
-	"github.com/dvkhr/metrix.git/internal/metric"
+	"github.com/dvkhr/metrix.git/internal/config"
+	"github.com/dvkhr/metrix.git/internal/logger"
+	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/go-chi/chi/v5"
 )
 
 type MetricStorage interface {
-	Save(mt metric.Metrics) error
-	Get(metricName string) (*metric.Metrics, error)
-	List() (*map[string]metric.Metrics, error)
+	Save(mt service.Metrics) error
+	Get(metricName string) (*service.Metrics, error)
+	List() (*map[string]service.Metrics, error)
 	NewMemStorage()
 }
 
 type MetricsServer struct {
 	MetricStorage MetricStorage
-	//cfg           ConfigServ
-	Sync bool
+	Config        config.ConfigServ
+	Sync          bool
+	mutex         sync.Mutex
 }
 
-func NewMetricsServer(MetricStorage MetricStorage) *MetricsServer {
+func NewMetricsServer(MetricStorage MetricStorage, Config config.ConfigServ) *MetricsServer {
 	MetricStorage.NewMemStorage()
-	return &MetricsServer{MetricStorage: MetricStorage, Sync: false}
+	var s bool
+	if Config.StoreInterval == 0*time.Second {
+		s = true
+	} else {
+		s = false
+	}
+	return &MetricsServer{MetricStorage: MetricStorage, Config: Config, Sync: s}
 }
 
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
@@ -54,12 +65,12 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 		http.Error(res, "Incorrect value!", http.StatusBadRequest)
 		return
 	}
-	mTemp := &metric.Metrics{}
+	mTemp := &service.Metrics{}
 	mTemp.ID = n
 
-	vtemp := metric.GaugeMetricValue(v)
+	vtemp := service.GaugeMetricValue(v)
 	mTemp.Value = &vtemp
-	mTemp.MType = metric.GaugeMetric
+	mTemp.MType = service.GaugeMetric
 
 	ms.MetricStorage.Save(*mTemp)
 	res.WriteHeader(http.StatusOK)
@@ -83,12 +94,12 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 		http.Error(res, "Incorrect value!", http.StatusBadRequest)
 		return
 	}
-	mTemp := &metric.Metrics{}
+	mTemp := &service.Metrics{}
 	mTemp.ID = n
 
-	vtemp := metric.CounterMetricValue(v)
+	vtemp := service.CounterMetricValue(v)
 	mTemp.Delta = &vtemp
-	mTemp.MType = metric.CounterMetric
+	mTemp.MType = service.CounterMetric
 
 	ms.MetricStorage.Save(*mTemp)
 	res.WriteHeader(http.StatusOK)
@@ -101,7 +112,7 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-	mTemp := &metric.Metrics{}
+	mTemp := &service.Metrics{}
 	var bufJSON bytes.Buffer
 
 	_, err := bufJSON.ReadFrom(req.Body)
@@ -130,6 +141,10 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 		return
 	}
 
+	if ms.Sync {
+		ms.DumpMetrics()
+	}
+
 	res.Write(bufResp)
 	res.WriteHeader(http.StatusOK)
 
@@ -142,7 +157,7 @@ func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Reques
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-	mTemp := &metric.Metrics{}
+	mTemp := &service.Metrics{}
 	var bufJSON bytes.Buffer
 
 	_, err := bufJSON.ReadFrom(req.Body)
@@ -197,10 +212,10 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 		return
 	}
 	switch mTemp.MType {
-	case metric.GaugeMetric:
+	case service.GaugeMetric:
 		value := mTemp.Value
 		fmt.Fprintf(res, "%v", *value)
-	case metric.CounterMetric:
+	case service.CounterMetric:
 		value := mTemp.Delta
 		fmt.Fprintf(res, "%v", *value)
 	}
@@ -231,4 +246,43 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 		return
 	}
 	res.WriteHeader(http.StatusOK)
+}
+func (ms *MetricsServer) DumpMetrics() {
+	file, err := os.OpenFile(ms.Config.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
+	if err != nil {
+		logger.Sugar.Errorln("unable open file", "file", ms.Config.FileStoragePath, "error", err)
+	}
+	ms.mutex.Lock()
+	err = service.DumpMetrics(ms.MetricStorage, file)
+	if err != nil {
+		logger.Sugar.Errorln("unable dump metrics", "error", err)
+	}
+	err = file.Sync()
+	if err != nil {
+		logger.Sugar.Errorln("unable sync file", "error", err)
+	}
+	ms.mutex.Unlock()
+	err = file.Close()
+	if err != nil {
+		logger.Sugar.Errorln("unable close file", "error", err)
+	}
+
+	logger.Sugar.Infoln("metrics dumped")
+}
+func (ms *MetricsServer) LoadMetrics() {
+	file, err := os.OpenFile(ms.Config.FileStoragePath, os.O_RDONLY, 0666)
+	if err != nil {
+		logger.Sugar.Errorln("unable open file", "file", ms.Config.FileStoragePath, "error", err)
+	} else {
+		err = service.RestoreMetrics(ms.MetricStorage, file)
+		if err != nil {
+			logger.Sugar.Errorln("unable to restore metrics", "error", err)
+		} else {
+			logger.Sugar.Infoln("metrics restored")
+		}
+		file.Close()
+		if err != nil {
+			logger.Sugar.Errorln("unable close file", "error", err)
+		}
+	}
 }

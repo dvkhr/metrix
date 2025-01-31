@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/dvkhr/metrix.git/internal/metric"
+	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
@@ -32,7 +32,7 @@ func main() {
 	for {
 		if collectInterval.IsZero() ||
 			time.Since(collectInterval) >= time.Duration(cfg.pollInterval)*time.Second {
-			metric.CollectMetrics(&mStor)
+			service.CollectMetrics(&mStor)
 			collectInterval = time.Now()
 		}
 
