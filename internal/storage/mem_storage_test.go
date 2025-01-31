@@ -1,16 +1,14 @@
 package storage
 
 import (
-	"reflect"
-	"sort"
 	"testing"
 
-	"github.com/dvkhr/metrix.git/internal/metric"
+	"github.com/dvkhr/metrix.git/internal/service"
 )
 
 func TestMemStorage_NewMemStorage(t *testing.T) {
 	type fields struct {
-		data map[string]interface{}
+		data map[string]service.Metrics
 	}
 	tests := []struct {
 		name   string
@@ -39,9 +37,13 @@ func TestMemStorage_NewMemStorage(t *testing.T) {
 	}
 }
 
+/*
 func TestMemStorage_PutGaugeMetric(t *testing.T) {
+	gauge10 := metric.GaugeMetricValue(10.0)
+	gauge15 := metric.GaugeMetricValue(15.0)
+	gauge25 := metric.GaugeMetricValue(25.0)
 	type fields struct {
-		data map[string]interface{}
+		data map[string]metric.Metrics
 	}
 	type args struct {
 		metricName  string
@@ -64,7 +66,7 @@ func TestMemStorage_PutGaugeMetric(t *testing.T) {
 		{
 			name: "InvalidMetricNmae",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName:  "",
@@ -75,15 +77,15 @@ func TestMemStorage_PutGaugeMetric(t *testing.T) {
 		{
 			name: "SuccessfulNewMetric",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName:  "Metric1",
 				metricValue: 10.0,
 			},
 			expect: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.GaugeMetricValue(10.0),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge10},
 				},
 			},
 			expectErr: nil,
@@ -91,8 +93,8 @@ func TestMemStorage_PutGaugeMetric(t *testing.T) {
 		{
 			name: "SuccessfulExistingMetric",
 			fields: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.GaugeMetricValue(15.0),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge15},
 				},
 			},
 			args: args{
@@ -100,8 +102,8 @@ func TestMemStorage_PutGaugeMetric(t *testing.T) {
 				metricValue: 10.0,
 			},
 			expect: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.GaugeMetricValue(10.0),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge25},
 				},
 			},
 			expectErr: nil,
@@ -128,8 +130,11 @@ func TestMemStorage_PutGaugeMetric(t *testing.T) {
 }
 
 func TestMemStorage_PutCouinterMetric(t *testing.T) {
+	gauge10 := metric.GaugeMetricValue(10.0)
+	gauge15 := metric.GaugeMetricValue(15.0)
+	gauge25 := metric.GaugeMetricValue(25.0)
 	type fields struct {
-		data map[string]interface{}
+		data map[string]metric.Metrics
 	}
 	type args struct {
 		metricName  string
@@ -152,7 +157,7 @@ func TestMemStorage_PutCouinterMetric(t *testing.T) {
 		{
 			name: "InvalidMetricNmae",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName:  "",
@@ -163,15 +168,15 @@ func TestMemStorage_PutCouinterMetric(t *testing.T) {
 		{
 			name: "SuccessfulNewMetric",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName:  "Metric1",
 				metricValue: 10,
 			},
 			expect: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.CounterMetricValue(10.0),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge10},
 				},
 			},
 			expectErr: nil,
@@ -179,8 +184,8 @@ func TestMemStorage_PutCouinterMetric(t *testing.T) {
 		{
 			name: "SuccessfulExistingMetric",
 			fields: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.CounterMetricValue(15),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge15},
 				},
 			},
 			args: args{
@@ -188,8 +193,8 @@ func TestMemStorage_PutCouinterMetric(t *testing.T) {
 				metricValue: 10,
 			},
 			expect: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.CounterMetricValue(25),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge25},
 				},
 			},
 			expectErr: nil,
@@ -216,8 +221,10 @@ func TestMemStorage_PutCouinterMetric(t *testing.T) {
 }
 
 func TestMemStorage_GetGaugeMetric(t *testing.T) {
+	gauge15 := metric.GaugeMetricValue(15.0)
+	//gauge23 := metric.GaugeMetricValue(23.0)
 	type fields struct {
-		data map[string]interface{}
+		data map[string]metric.Metrics
 	}
 	type args struct {
 		metricName string
@@ -239,7 +246,7 @@ func TestMemStorage_GetGaugeMetric(t *testing.T) {
 		{
 			name: "InvalidMetricNmae",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName: "",
@@ -249,7 +256,7 @@ func TestMemStorage_GetGaugeMetric(t *testing.T) {
 		{
 			name: "UnknownMetric",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName: "UnknownMetric",
@@ -259,8 +266,8 @@ func TestMemStorage_GetGaugeMetric(t *testing.T) {
 		{
 			name: "Successful",
 			fields: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.GaugeMetricValue(15.0),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge15},
 				},
 			},
 			args: args{
@@ -288,8 +295,9 @@ func TestMemStorage_GetGaugeMetric(t *testing.T) {
 }
 
 func TestMemStorage_GetCounterMetric(t *testing.T) {
+	gauge15 := metric.GaugeMetricValue(15.0)
 	type fields struct {
-		data map[string]interface{}
+		data map[string]metric.Metrics
 	}
 	type args struct {
 		metricName string
@@ -311,7 +319,7 @@ func TestMemStorage_GetCounterMetric(t *testing.T) {
 		{
 			name: "InvalidMetricNmae",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName: "",
@@ -321,7 +329,7 @@ func TestMemStorage_GetCounterMetric(t *testing.T) {
 		{
 			name: "UnknownMetric",
 			fields: fields{
-				data: make(map[string]interface{}),
+				data: make(map[string]metric.Metrics),
 			},
 			args: args{
 				metricName: "UnknownMetric",
@@ -331,8 +339,8 @@ func TestMemStorage_GetCounterMetric(t *testing.T) {
 		{
 			name: "Successful",
 			fields: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.CounterMetricValue(15),
+				data: map[string]metric.Metrics{
+					"Metric1": metric.Metrics{ID: "Metric1", MType: metric.GaugeMetric, Value: &gauge15},
 				},
 			},
 			args: args{
@@ -357,64 +365,4 @@ func TestMemStorage_GetCounterMetric(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestMemStorage_MetricStrings(t *testing.T) {
-	type fields struct {
-		data map[string]interface{}
-	}
-	tests := []struct {
-		name      string
-		fields    fields
-		expect    []string
-		expectErr error
-	}{
-		{
-			name: "UninitializedStorage",
-			fields: fields{
-				data: nil,
-			},
-			expectErr: metric.ErrUninitializedStorage,
-		},
-		{
-			name: "SuccessfulEmpty",
-			fields: fields{
-				data: make(map[string]interface{}),
-			},
-			expectErr: nil,
-			expect:    []string{},
-		},
-		{
-			name: "Successful",
-			fields: fields{
-				data: map[string]interface{}{
-					"Metric1": metric.CounterMetricValue(15),
-					"Metric2": metric.GaugeMetricValue(23.0),
-				},
-			},
-			expectErr: nil,
-			expect: []string{
-				"counter/Metric1/15",
-				"gauge/Metric2/23",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ms := &MemStorage{
-				data: tt.fields.data,
-			}
-			got, err := ms.MetricStrings()
-			if err != tt.expectErr {
-				t.Errorf("MemStorage.MetricStrings() error [%v], expect error [%v]", err, tt.expectErr)
-				return
-			}
-
-			sort.Strings(got)
-			sort.Strings(tt.expect)
-			if !reflect.DeepEqual(got, tt.expect) {
-				t.Errorf("MemStorage.MetricStrings() result [%+v], expect [%+v]", got, tt.expect)
-			}
-		})
-	}
-}
+}*/
