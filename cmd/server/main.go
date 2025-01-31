@@ -2,68 +2,20 @@ package main
 
 import (
 	"context"
-	"errors"
-	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
-	"strconv"
+	"sync"
 	"time"
 
 	"github.com/dvkhr/metrix.git/internal/gzip"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logger"
+	"github.com/dvkhr/metrix.git/internal/metric"
 	"github.com/dvkhr/metrix.git/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
-
-type ConfigServ struct {
-	address         string
-	fileStoragePath string
-	storeInterval   int64
-	restore         bool
-}
-
-var ErrStoreIntetrvalNegativ = errors.New("storeInterval is negativ or zero")
-var ErrFileStoragePathEmpty = errors.New("fileStoragePath is empty string")
-var ErrAddressEmpty = errors.New("address is an empty string")
-
-func (cfg *ConfigServ) check() error {
-	if cfg.fileStoragePath == "" {
-		return ErrFileStoragePathEmpty
-	} else if cfg.address == "" {
-		return ErrAddressEmpty
-	} else if cfg.storeInterval <= 0 {
-		return ErrStoreIntetrvalNegativ
-	} else {
-		return nil
-	}
-}
-
-func (cfg *ConfigServ) parseFlags() error {
-	flag.StringVar(&cfg.address, "a", "localhost:8080", "Endpoint HTTP-server")
-	flag.StringVar(&cfg.fileStoragePath, "f", "metrics.json", "The path to the file with metrics") //"~/go/src/metrix/metrics.json"
-	flag.Int64Var(&cfg.storeInterval, "i", 300, "Frequency of saving to disk in seconds")
-	flag.BoolVar(&cfg.restore, "r", true, "loading saved values")
-	flag.Parse()
-
-	if envVarAddr := os.Getenv("ADDRESS"); envVarAddr != "" {
-		cfg.address = envVarAddr
-	}
-
-	if envVarStor := os.Getenv("FILE_STORAGE_PATH"); envVarStor != "" {
-		cfg.fileStoragePath = envVarStor
-	}
-
-	if envStorInt := os.Getenv("STORE_INTERVAL"); envStorInt != "" {
-		cfg.storeInterval, _ = strconv.ParseInt(envStorInt, 10, 64)
-	}
-	if envReStor := os.Getenv("POLL_INTERVAL"); envReStor != "" {
-		cfg.restore, _ = strconv.ParseBool(envReStor)
-	}
-	return cfg.check()
-}
 
 func main() {
 	var cfg ConfigServ
@@ -72,15 +24,19 @@ func main() {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	var mutex sync.Mutex
 
 	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{})
+	if cfg.storeInterval == 0*time.Second {
+		MetricServer.Sync = true
+	}
 
 	if cfg.restore {
 		file, err := os.OpenFile(cfg.fileStoragePath, os.O_RDONLY, 0666)
 		if err != nil {
 			logger.Sugar.Errorln("unable open file", "file", cfg.fileStoragePath, "error", err)
 		} else {
-			err = handlers.RestoreMetrics(MetricServer, file)
+			err = metric.RestoreMetrics(MetricServer.MetricStorage, file)
 			if err != nil {
 				logger.Sugar.Errorln("unable to restore metrics", "error", err)
 			} else {
@@ -97,9 +53,9 @@ func main() {
 
 	r.Get("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetAllMetrics)))
 	r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
-	r.Post("/value/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetMetricJSON)))
+	r.Post("/value/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.ExtractMetric)))
 	r.Route("/update", func(r chi.Router) {
-		r.Post("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandlePutMetricJSON)))
+		r.Post("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.UpdateMetric)))
 		r.Post("/*", logger.WithLogging(MetricServer.IncorrectMetricRq))
 		r.Route("/gauge", func(r chi.Router) {
 			r.Post("/", logger.WithLogging(MetricServer.NotfoundMetricRq))
@@ -125,8 +81,8 @@ func main() {
 		if err != nil {
 			logger.Sugar.Errorln("unable open file", "file", cfg.fileStoragePath, "error", err)
 		}
-
-		err = handlers.DumpMetrics(MetricServer, file)
+		mutex.Lock()
+		err = metric.DumpMetrics(MetricServer.MetricStorage, file)
 		if err != nil {
 			logger.Sugar.Errorln("unable dump metrics", "error", err)
 		}
@@ -134,6 +90,7 @@ func main() {
 		if err != nil {
 			logger.Sugar.Errorln("unable sync file", "error", err)
 		}
+		mutex.Unlock()
 		err = file.Close()
 		if err != nil {
 			logger.Sugar.Errorln("unable close file", "error", err)
