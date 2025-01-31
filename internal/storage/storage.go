@@ -12,7 +12,7 @@ func (ms *MemStorage) NewMemStorage() {
 	ms.data = make(map[string]metric.Metrics)
 }
 
-func (ms *MemStorage) PutMetric(mt metric.Metrics) error {
+func (ms *MemStorage) Save(mt metric.Metrics) error {
 	if ms.data == nil {
 		return metric.ErrUninitializedStorage
 	}
@@ -31,11 +31,10 @@ func (ms *MemStorage) PutMetric(mt metric.Metrics) error {
 	} else {
 		return metric.ErrInvalidMetricName
 	}
-
 	return nil
 }
 
-func (ms *MemStorage) GetMetric(metricName string) (*metric.Metrics, error) {
+func (ms *MemStorage) Get(metricName string) (*metric.Metrics, error) {
 	if ms.data == nil {
 		return nil, metric.ErrUninitializedStorage
 	}
@@ -48,7 +47,7 @@ func (ms *MemStorage) GetMetric(metricName string) (*metric.Metrics, error) {
 	return nil, metric.ErrUnkonownMetric
 }
 
-func (ms *MemStorage) AllMetrics() (*map[string]metric.Metrics, error) {
+func (ms *MemStorage) List() (*map[string]metric.Metrics, error) {
 	if ms.data == nil {
 		return nil, metric.ErrUninitializedStorage
 	}

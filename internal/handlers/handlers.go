@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -15,19 +14,21 @@ import (
 )
 
 type MetricStorage interface {
-	PutMetric(mt metric.Metrics) error
-	GetMetric(metricName string) (*metric.Metrics, error)
-	AllMetrics() (*map[string]metric.Metrics, error)
+	Save(mt metric.Metrics) error
+	Get(metricName string) (*metric.Metrics, error)
+	List() (*map[string]metric.Metrics, error)
 	NewMemStorage()
 }
 
 type MetricsServer struct {
 	MetricStorage MetricStorage
+	//cfg           ConfigServ
+	Sync bool
 }
 
 func NewMetricsServer(MetricStorage MetricStorage) *MetricsServer {
 	MetricStorage.NewMemStorage()
-	return &MetricsServer{MetricStorage: MetricStorage}
+	return &MetricsServer{MetricStorage: MetricStorage, Sync: false}
 }
 
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
@@ -60,9 +61,9 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 	mTemp.Value = &vtemp
 	mTemp.MType = metric.GaugeMetric
 
-	ms.MetricStorage.PutMetric(*mTemp)
+	ms.MetricStorage.Save(*mTemp)
 	res.WriteHeader(http.StatusOK)
-	ms.MetricStorage.GetMetric(req.PathValue("name"))
+	ms.MetricStorage.Get(req.PathValue("name"))
 	res.WriteHeader(http.StatusOK)
 }
 
@@ -89,11 +90,11 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 	mTemp.Delta = &vtemp
 	mTemp.MType = metric.CounterMetric
 
-	ms.MetricStorage.PutMetric(*mTemp)
+	ms.MetricStorage.Save(*mTemp)
 	res.WriteHeader(http.StatusOK)
 }
 
-func (ms *MetricsServer) HandlePutMetricJSON(res http.ResponseWriter, req *http.Request) {
+func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
@@ -113,12 +114,12 @@ func (ms *MetricsServer) HandlePutMetricJSON(res http.ResponseWriter, req *http.
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := ms.MetricStorage.PutMetric(*mTemp); err != nil {
+	if err := ms.MetricStorage.Save(*mTemp); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if mTemp, err = ms.MetricStorage.GetMetric(mTemp.ID); err != nil {
+	if mTemp, err = ms.MetricStorage.Get(mTemp.ID); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -131,9 +132,10 @@ func (ms *MetricsServer) HandlePutMetricJSON(res http.ResponseWriter, req *http.
 
 	res.Write(bufResp)
 	res.WriteHeader(http.StatusOK)
+
 }
 
-func (ms *MetricsServer) HandleGetMetricJSON(res http.ResponseWriter, req *http.Request) {
+func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
@@ -156,7 +158,7 @@ func (ms *MetricsServer) HandleGetMetricJSON(res http.ResponseWriter, req *http.
 
 	mType := mTemp.MType
 
-	if mTemp, err = ms.MetricStorage.GetMetric(mTemp.ID); err != nil {
+	if mTemp, err = ms.MetricStorage.Get(mTemp.ID); err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -189,7 +191,7 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 	}
 	n := chi.URLParam(req, "name")
 	//mTemp := &metric.Metrics{}
-	mTemp, err := ms.MetricStorage.GetMetric(n)
+	mTemp, err := ms.MetricStorage.Get(n)
 	if err != nil {
 		http.Error(res, "Metric not found!", http.StatusNotFound)
 		return
@@ -216,7 +218,7 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	mtrx, err := ms.MetricStorage.AllMetrics()
+	mtrx, err := ms.MetricStorage.List()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -229,34 +231,4 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 		return
 	}
 	res.WriteHeader(http.StatusOK)
-}
-
-func DumpMetrics(ms *MetricsServer, wr io.Writer) error {
-
-	mtrx, err := ms.MetricStorage.AllMetrics()
-	if err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(mtrx, "", "  ")
-	if err != nil {
-		return err
-	}
-	_, err = wr.Write(data)
-	return err
-}
-func RestoreMetrics(ms *MetricsServer, rd io.Reader) error {
-	var data []byte
-
-	data, err := io.ReadAll(rd)
-	if err != nil {
-		return err
-	}
-
-	stor, err := ms.MetricStorage.AllMetrics()
-	if err != nil {
-		return err
-	}
-	err = json.Unmarshal(data, stor)
-
-	return err
 }

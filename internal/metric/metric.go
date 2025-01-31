@@ -1,8 +1,10 @@
 package metric
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"runtime"
@@ -30,7 +32,8 @@ var ErrInvalidMetricName = errors.New("invalid metric name")
 var ErrUnkonownMetric = errors.New("unknown metric")
 
 type MetricStorage interface {
-	PutMetric(mt Metrics) error
+	Save(mt Metrics) error
+	List() (*map[string]Metrics, error)
 }
 
 func CollectMetrics(ms MetricStorage) {
@@ -46,7 +49,7 @@ func CollectMetrics(ms MetricStorage) {
 			temp := metricValue.(CounterMetricValue)
 			mt = Metrics{ID: metricName, MType: metricType, Delta: &temp}
 		}
-		err := ms.PutMetric(mt)
+		err := ms.Save(mt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: collecting %s metric %s:%v\n", metricType, metricName, err)
 		}
@@ -81,4 +84,34 @@ func CollectMetrics(ms MetricStorage) {
 	collectMetric(GaugeMetric, "RandomValue", GaugeMetricValue(rand.Float64()))
 
 	collectMetric(CounterMetric, "PollCount", CounterMetricValue(1))
+}
+
+func DumpMetrics(ms MetricStorage, wr io.Writer) error {
+
+	mtrx, err := ms.List()
+	if err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(mtrx, "", "  ")
+	if err != nil {
+		return err
+	}
+	_, err = wr.Write(data)
+	return err
+}
+func RestoreMetrics(ms MetricStorage, rd io.Reader) error {
+	var data []byte
+
+	data, err := io.ReadAll(rd)
+	if err != nil {
+		return err
+	}
+
+	stor, err := ms.List()
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, stor)
+
+	return err
 }
