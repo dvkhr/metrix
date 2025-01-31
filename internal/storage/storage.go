@@ -1,27 +1,27 @@
 package storage
 
 import (
-	"github.com/dvkhr/metrix.git/internal/metric"
+	"github.com/dvkhr/metrix.git/internal/service"
 )
 
 type MemStorage struct {
-	data map[string]metric.Metrics
+	data map[string]service.Metrics
 }
 
 func (ms *MemStorage) NewMemStorage() {
-	ms.data = make(map[string]metric.Metrics)
+	ms.data = make(map[string]service.Metrics)
 }
 
-func (ms *MemStorage) Save(mt metric.Metrics) error {
+func (ms *MemStorage) Save(mt service.Metrics) error {
 	if ms.data == nil {
-		return metric.ErrUninitializedStorage
+		return service.ErrUninitializedStorage
 	}
 	if len(mt.ID) == 0 {
-		return metric.ErrInvalidMetricName
+		return service.ErrInvalidMetricName
 	}
-	if mt.MType == metric.GaugeMetric {
+	if mt.MType == service.GaugeMetric {
 		ms.data[mt.ID] = mt
-	} else if mt.MType == metric.CounterMetric {
+	} else if mt.MType == service.CounterMetric {
 		if ms.data[mt.ID].Delta != nil {
 			*ms.data[mt.ID].Delta += *mt.Delta
 		} else {
@@ -29,27 +29,27 @@ func (ms *MemStorage) Save(mt metric.Metrics) error {
 		}
 
 	} else {
-		return metric.ErrInvalidMetricName
+		return service.ErrInvalidMetricName
 	}
 	return nil
 }
 
-func (ms *MemStorage) Get(metricName string) (*metric.Metrics, error) {
+func (ms *MemStorage) Get(metricName string) (*service.Metrics, error) {
 	if ms.data == nil {
-		return nil, metric.ErrUninitializedStorage
+		return nil, service.ErrUninitializedStorage
 	}
 	if len(metricName) == 0 {
-		return nil, metric.ErrInvalidMetricName
+		return nil, service.ErrInvalidMetricName
 	}
 	if m, ok := ms.data[metricName]; ok {
 		return &m, nil
 	}
-	return nil, metric.ErrUnkonownMetric
+	return nil, service.ErrUnkonownMetric
 }
 
-func (ms *MemStorage) List() (*map[string]metric.Metrics, error) {
+func (ms *MemStorage) List() (*map[string]service.Metrics, error) {
 	if ms.data == nil {
-		return nil, metric.ErrUninitializedStorage
+		return nil, service.ErrUninitializedStorage
 	}
 
 	return &ms.data, nil
