@@ -47,6 +47,7 @@ func (cfg *ConfigServ) ParseFlags() error {
 	flag.StringVar(&cfg.Address, "a", "localhost:8080", "Endpoint HTTP-server")
 	flag.StringVar(&cfg.FileStoragePath, "f", "metrics.json", "The path to the file with metrics")
 	flag.StringVar(&cfg.DBDsn, "d", "metrix", "The data source name database")
+	flag.StringVar(&cfg.FileStoragePath, "f", "metrics.json", "The path to the file with metrics") //"~/go/src/metrix/metrics.json"
 	flag.Int64Var(&storInt, "i", 0, "Frequency of saving to disk in seconds")
 	flag.BoolVar(&cfg.Restore, "r", true, "loading saved values")
 	flag.Parse()
@@ -58,6 +59,7 @@ func (cfg *ConfigServ) ParseFlags() error {
 	if envVarStor := os.Getenv("FILE_STORAGE_PATH"); envVarStor != "" {
 		cfg.FileStoragePath = envVarStor
 	}
+
 	if envVarDB := os.Getenv("DATABASE_DSN"); envVarDB != "" {
 		cfg.DBDsn = envVarDB
 	}

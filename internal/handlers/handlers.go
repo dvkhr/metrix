@@ -69,11 +69,9 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 	}
 	mTemp := &service.Metrics{}
 	mTemp.ID = n
-
 	vtemp := service.GaugeMetricValue(v)
 	mTemp.Value = &vtemp
 	mTemp.MType = service.GaugeMetric
-
 	ms.MetricStorage.Save(*mTemp)
 	res.WriteHeader(http.StatusOK)
 	ms.MetricStorage.Get(req.PathValue("name"))
@@ -287,6 +285,7 @@ func (ms *MetricsServer) LoadMetrics() {
 			logger.Sugar.Errorln("unable close file", "error", err)
 		}
 	}
+
 }
 func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
 	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -308,5 +307,4 @@ func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Reque
 	logger.Sugar.Infoln("connection to the database has been successfully")
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte("Status OK"))
-
 }
