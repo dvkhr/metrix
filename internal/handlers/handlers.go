@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"github.com/dvkhr/metrix.git/internal/logger"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type MetricStorage interface {
@@ -285,4 +287,25 @@ func (ms *MetricsServer) LoadMetrics() {
 			logger.Sugar.Errorln("unable close file", "error", err)
 		}
 	}
+}
+func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
+	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
+		`localhost`, `admin`, `12345`, ms.Config.DBDsn)
+
+	db, err := sql.Open("pgx", ps)
+	if err != nil {
+		logger.Sugar.Errorln("internel server error", "error", err)
+		http.Error(res, "internel server error", http.StatusInternalServerError)
+		return
+	}
+	defer db.Close()
+	err = db.Ping()
+	if err != nil {
+		logger.Sugar.Errorln("database connection failed", "error", err)
+		http.Error(res, "database connection failed", http.StatusInternalServerError)
+		return
+	}
+	logger.Sugar.Infoln("connection to the database has been successfully")
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte("Status OK"))
 }
