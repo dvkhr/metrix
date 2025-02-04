@@ -289,10 +289,8 @@ func (ms *MetricsServer) LoadMetrics() {
 	}
 }
 func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
-	ps := fmt.Sprintf("host=%s user=%s password=%s dbname=%s sslmode=disable",
-		`localhost`, `admin`, `12345`, ms.Config.DBDsn)
 
-	db, err := sql.Open("pgx", ps)
+	db, err := sql.Open("pgx", ms.Config.DBDsn)
 	if err != nil {
 		logger.Sugar.Errorln("internel server error", "error", err)
 		http.Error(res, "internel server error", http.StatusInternalServerError)
