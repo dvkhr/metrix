@@ -46,7 +46,7 @@ func (cfg *ConfigServ) ParseFlags() error {
 	var storInt int64
 	flag.StringVar(&cfg.Address, "a", "localhost:8080", "Endpoint HTTP-server")
 	flag.StringVar(&cfg.FileStoragePath, "f", "metrics.json", "The path to the file with metrics")
-	flag.StringVar(&cfg.DBDsn, "d", "metrix", "The data source name database")
+	flag.StringVar(&cfg.DBDsn, "d", "metrix", "The data source")
 	flag.Int64Var(&storInt, "i", 0, "Frequency of saving to disk in seconds")
 	flag.BoolVar(&cfg.Restore, "r", true, "loading saved values")
 	flag.Parse()

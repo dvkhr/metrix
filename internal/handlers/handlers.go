@@ -31,6 +31,7 @@ type MetricsServer struct {
 	Config        config.ConfigServ
 	Sync          bool
 	mutex         sync.Mutex
+	DB            *sql.DB
 }
 
 func NewMetricsServer(MetricStorage MetricStorage, Config config.ConfigServ) *MetricsServer {
@@ -289,15 +290,7 @@ func (ms *MetricsServer) LoadMetrics() {
 	}
 }
 func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
-
-	db, err := sql.Open("pgx", ms.Config.DBDsn)
-	if err != nil {
-		logger.Sugar.Errorln("internel server error", "error", err)
-		http.Error(res, "internel server error", http.StatusInternalServerError)
-		return
-	}
-	defer db.Close()
-	err = db.Ping()
+	err := ms.DB.Ping()
 	if err != nil {
 		logger.Sugar.Errorln("database connection failed", "error", err)
 		http.Error(res, "database connection failed", http.StatusInternalServerError)

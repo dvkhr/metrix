@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -30,8 +31,13 @@ func main() {
 		MetricServer.LoadMetrics()
 	}
 
-	r := chi.NewRouter()
+	MetricServer.DB, err = sql.Open("pgx", MetricServer.Config.DBDsn)
+	if err != nil {
+		logger.Sugar.Errorln("failed to connect db", "error", err)
+	}
+	defer MetricServer.DB.Close()
 
+	r := chi.NewRouter()
 	r.Get("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetAllMetrics)))
 	r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
 	r.Get("/ping", logger.WithLogging(MetricServer.CheckDBConnect))
