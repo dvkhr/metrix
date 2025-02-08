@@ -8,8 +8,9 @@ type MemStorage struct {
 	data map[string]service.Metrics
 }
 
-func (ms *MemStorage) NewMemStorage() {
+func (ms *MemStorage) NewStorage() error {
 	ms.data = make(map[string]service.Metrics)
+	return nil
 }
 
 func (ms *MemStorage) Save(mt service.Metrics) error {
@@ -27,7 +28,6 @@ func (ms *MemStorage) Save(mt service.Metrics) error {
 		} else {
 			ms.data[mt.ID] = mt
 		}
-
 	} else {
 		return service.ErrInvalidMetricName
 	}
@@ -53,4 +53,15 @@ func (ms *MemStorage) List() (*map[string]service.Metrics, error) {
 	}
 
 	return &ms.data, nil
+}
+
+func (ms *MemStorage) FreeStorage() error {
+	return nil
+}
+
+func (ms *MemStorage) CheckStorage() error {
+	if ms.data == nil {
+		return service.ErrUninitializedStorage
+	}
+	return nil
 }

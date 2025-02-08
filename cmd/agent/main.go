@@ -24,7 +24,7 @@ func main() {
 		os.Exit(1)
 	}
 	var mStor storage.MemStorage
-	mStor.NewMemStorage()
+	mStor.NewStorage()
 
 	cl := &http.Client{Timeout: 5 * time.Second}
 
@@ -81,7 +81,7 @@ func main() {
 						fmt.Println(string(body))
 					}
 
-					mStor.NewMemStorage()
+					mStor.NewStorage()
 				}
 			}
 			sendInterval = time.Now()

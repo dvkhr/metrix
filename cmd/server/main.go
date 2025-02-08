@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"github.com/dvkhr/metrix.git/internal/gzip"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logger"
-	"github.com/dvkhr/metrix.git/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -25,17 +23,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{}, cfg)
-
-	if cfg.Restore {
-		MetricServer.LoadMetrics()
-	}
-
-	MetricServer.DB, err = sql.Open("pgx", MetricServer.Config.DBDsn)
+	MetricServer, err := handlers.NewMetricsServer(cfg)
 	if err != nil {
-		logger.Sugar.Errorln("failed to connect db", "error", err)
+		logger.Sugar.Errorln("unable to initialize storage", "error", err)
+		os.Exit(1)
 	}
-	defer MetricServer.DB.Close()
 
 	r := chi.NewRouter()
 	r.Get("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetAllMetrics)))
@@ -64,14 +56,6 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	if !MetricServer.Sync {
-		go func() {
-			for {
-				time.Sleep(time.Duration(cfg.StoreInterval) * time.Second)
-				MetricServer.DumpMetrics()
-			}
-		}()
-	}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Sugar.Fatalw(err.Error(), "event", "start server")
@@ -88,7 +72,7 @@ func main() {
 		logger.Sugar.Fatalw(err.Error(), "event", "server forced to shutdown", "error", err)
 	}
 
-	MetricServer.DumpMetrics()
+	MetricServer.MetricStorage.FreeStorage()
 
 	logger.Sugar.Infoln("server shut down completed")
 }

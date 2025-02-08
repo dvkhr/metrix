@@ -2,19 +2,16 @@ package handlers
 
 import (
 	"bytes"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
-	"sync"
 	"text/template"
-	"time"
 
 	"github.com/dvkhr/metrix.git/internal/config"
-	"github.com/dvkhr/metrix.git/internal/logger"
 	"github.com/dvkhr/metrix.git/internal/service"
+	"github.com/dvkhr/metrix.git/internal/storage"
 	"github.com/go-chi/chi/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
@@ -23,26 +20,33 @@ type MetricStorage interface {
 	Save(mt service.Metrics) error
 	Get(metricName string) (*service.Metrics, error)
 	List() (*map[string]service.Metrics, error)
-	NewMemStorage()
+	NewStorage() error
+	FreeStorage() error
+	CheckStorage() error
 }
 
 type MetricsServer struct {
 	MetricStorage MetricStorage
 	Config        config.ConfigServ
-	Sync          bool
-	mutex         sync.Mutex
-	DB            *sql.DB
 }
 
-func NewMetricsServer(MetricStorage MetricStorage, Config config.ConfigServ) *MetricsServer {
-	MetricStorage.NewMemStorage()
-	var s bool
-	if Config.StoreInterval == 0*time.Second {
-		s = true
+func NewMetricsServer(Config config.ConfigServ) (*MetricsServer, error) {
+	var ms MetricStorage
+	if len(Config.DBDsn) > 0 {
+		ms = &storage.DBStorage{DbDSN: Config.DBDsn}
+
+	} else if len(Config.FileStoragePath) > 0 {
+		ms = &storage.FileStorage{FileStoragePath: Config.FileStoragePath}
+
 	} else {
-		s = false
+		ms = &storage.MemStorage{}
 	}
-	return &MetricsServer{MetricStorage: MetricStorage, Config: Config, Sync: s}
+
+	if err := ms.NewStorage(); err != nil {
+		return nil, err
+	}
+
+	return &MetricsServer{MetricStorage: ms, Config: Config}, nil
 }
 
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
@@ -144,10 +148,6 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	if ms.Sync {
-		ms.DumpMetrics()
-	}
-
 	res.Write(bufResp)
 	res.WriteHeader(http.StatusOK)
 
@@ -226,6 +226,7 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 
 func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
 	res.Header().Set("Content-Type", "text/html")
+
 	if req.Method != http.MethodGet {
 		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -250,53 +251,17 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 	}
 	res.WriteHeader(http.StatusOK)
 }
-func (ms *MetricsServer) DumpMetrics() {
-	file, err := os.OpenFile(ms.Config.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		logger.Sugar.Errorln("unable open file", "file", ms.Config.FileStoragePath, "error", err)
-	}
-	ms.mutex.Lock()
-	err = service.DumpMetrics(ms.MetricStorage, file)
-	if err != nil {
-		logger.Sugar.Errorln("unable dump metrics", "error", err)
-	}
-	err = file.Sync()
-	if err != nil {
-		logger.Sugar.Errorln("unable sync file", "error", err)
-	}
-	ms.mutex.Unlock()
-	err = file.Close()
-	if err != nil {
-		logger.Sugar.Errorln("unable close file", "error", err)
+
+func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
+		return
 	}
 
-	logger.Sugar.Infoln("metrics dumped")
-}
-func (ms *MetricsServer) LoadMetrics() {
-	file, err := os.OpenFile(ms.Config.FileStoragePath, os.O_RDONLY, 0666)
-	if err != nil {
-		logger.Sugar.Errorln("unable open file", "file", ms.Config.FileStoragePath, "error", err)
-	} else {
-		err = service.RestoreMetrics(ms.MetricStorage, file)
-		if err != nil {
-			logger.Sugar.Errorln("unable to restore metrics", "error", err)
-		} else {
-			logger.Sugar.Infoln("metrics restored")
-		}
-		file.Close()
-		if err != nil {
-			logger.Sugar.Errorln("unable close file", "error", err)
-		}
-	}
-}
-func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
-	err := ms.DB.Ping()
-	if err != nil {
-		logger.Sugar.Errorln("database connection failed", "error", err)
+	if err := ms.MetricStorage.CheckStorage(); err != nil {
 		http.Error(res, "database connection failed", http.StatusInternalServerError)
 		return
 	}
-	logger.Sugar.Infoln("connection to the database has been successfully")
 	res.WriteHeader(http.StatusOK)
 	res.Write([]byte("Status OK"))
 }

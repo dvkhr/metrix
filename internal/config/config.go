@@ -5,16 +5,12 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
-	"strconv"
-	"time"
 )
 
 type ConfigServ struct {
 	Address         string
 	FileStoragePath string
-	StoreInterval   time.Duration
 	DBDsn           string
-	Restore         bool
 }
 
 var ErrStoreIntetrvalNegativ = errors.New("storeInterval is negativ or zero")
@@ -29,26 +25,17 @@ func (cfg *ConfigServ) check() error {
 	if os.IsNotExist(err) {
 		return ErrNoDirectory
 	}
-	if cfg.FileStoragePath == "" {
-		return ErrFileStoragePathEmpty
-	} else if cfg.Address == "" {
+	if cfg.Address == "" {
 		return ErrAddressEmpty
-	} else if cfg.StoreInterval < 0*time.Microsecond {
-		return ErrStoreIntetrvalNegativ
-	} else if cfg.DBDsn == "" {
-		return ErrDataBaseDsn
 	} else {
 		return nil
 	}
 }
 
 func (cfg *ConfigServ) ParseFlags() error {
-	var storInt int64
 	flag.StringVar(&cfg.Address, "a", "localhost:8080", "Endpoint HTTP-server")
-	flag.StringVar(&cfg.FileStoragePath, "f", "metrics.json", "The path to the file with metrics")
-	flag.StringVar(&cfg.DBDsn, "d", "metrix", "The data source")
-	flag.Int64Var(&storInt, "i", 0, "Frequency of saving to disk in seconds")
-	flag.BoolVar(&cfg.Restore, "r", true, "loading saved values")
+	flag.StringVar(&cfg.FileStoragePath, "f", "", "The path to the file with metrics")
+	flag.StringVar(&cfg.DBDsn, "d", "", "The data source")
 	flag.Parse()
 
 	if envVarAddr := os.Getenv("ADDRESS"); envVarAddr != "" {
@@ -63,12 +50,5 @@ func (cfg *ConfigServ) ParseFlags() error {
 		cfg.DBDsn = envVarDB
 	}
 
-	if envStorInt := os.Getenv("STORE_INTERVAL"); envStorInt != "" {
-		storInt, _ = strconv.ParseInt(envStorInt, 10, 64)
-	}
-	if envReStor := os.Getenv("POLL_INTERVAL"); envReStor != "" {
-		cfg.Restore, _ = strconv.ParseBool(envReStor)
-	}
-	cfg.StoreInterval = time.Duration(storInt) * time.Second
 	return cfg.check()
 }
