@@ -33,7 +33,7 @@ type MetricsServer struct {
 func NewMetricsServer(Config config.ConfigServ) (*MetricsServer, error) {
 	var ms MetricStorage
 	if len(Config.DBDsn) > 0 {
-		ms = &storage.DBStorage{DbDSN: Config.DBDsn}
+		ms = &storage.DBStorage{DBDSN: Config.DBDsn}
 
 	} else if len(Config.FileStoragePath) > 0 {
 		ms = &storage.FileStorage{FileStoragePath: Config.FileStoragePath}

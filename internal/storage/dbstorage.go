@@ -8,7 +8,7 @@ import (
 )
 
 type DBStorage struct {
-	DbDSN           string
+	DBDSN           string
 	db              *sql.DB
 	saveGaugeStmt   *sql.Stmt
 	saveCounterStmt *sql.Stmt
@@ -18,7 +18,7 @@ type DBStorage struct {
 
 func (ms *DBStorage) NewStorage() error {
 	var err error
-	if ms.db, err = sql.Open("pgx", ms.DbDSN); err != nil {
+	if ms.db, err = sql.Open("pgx", ms.DBDSN); err != nil {
 		return nil
 	}
 
