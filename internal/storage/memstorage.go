@@ -12,6 +12,7 @@ type MemStorage struct {
 
 func (ms *MemStorage) NewStorage() error {
 	ms.data = make(map[string]service.Metrics)
+
 	return nil
 }
 

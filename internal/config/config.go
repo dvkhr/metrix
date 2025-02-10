@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -36,8 +37,8 @@ func (cfg *ConfigServ) check() error {
 func (cfg *ConfigServ) ParseFlags() error {
 	var storInt int64
 	flag.StringVar(&cfg.Address, "a", "localhost:8080", "Endpoint HTTP-server")
-	flag.StringVar(&cfg.FileStoragePath, "f", "metrics.json", "The path to the file with metrics")
-	flag.StringVar(&cfg.DBDsn, "d", "metrix", "The data source")
+	flag.StringVar(&cfg.FileStoragePath, "f", "", "The path to the file with metrics")
+	flag.StringVar(&cfg.DBDsn, "d", "", "The data source")
 	// Next 2 parametrs are useless in current implementation, left here just not to break autotests
 	flag.Int64Var(&storInt, "i", 0, "Frequency of saving to disk in seconds")
 	flag.BoolVar(&cfg.Restore, "r", true, "loading saved values")
@@ -54,6 +55,8 @@ func (cfg *ConfigServ) ParseFlags() error {
 	if envVarDB := os.Getenv("DATABASE_DSN"); envVarDB != "" {
 		cfg.DBDsn = envVarDB
 	}
+	fmt.Println(cfg.FileStoragePath)
+	fmt.Println(cfg.DBDsn)
 
 	return cfg.check()
 }
