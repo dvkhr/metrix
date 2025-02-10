@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -21,7 +22,7 @@ func (ms *FileStorage) NewStorage() error {
 	return err
 }
 
-func (ms *FileStorage) Save(mt service.Metrics) error {
+func (ms *FileStorage) Save(ctx context.Context, mt service.Metrics) error {
 	defer ms.file.Sync()
 
 	ms.syncMutex.Lock()
@@ -35,7 +36,7 @@ func (ms *FileStorage) Save(mt service.Metrics) error {
 		return service.ErrInvalidMetricName
 	}
 
-	mtrx, err := ms.List()
+	mtrx, err := ms.List(ctx)
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,59 @@ func (ms *FileStorage) Save(mt service.Metrics) error {
 	return err
 }
 
-func (ms *FileStorage) Get(metricName string) (*service.Metrics, error) {
+func (ms *FileStorage) SaveAll(ctx context.Context, mt *[]service.Metrics) error {
+	defer ms.file.Sync()
+
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
+	if ms.file == nil {
+		return service.ErrUninitializedStorage
+	}
+
+	if len(*mt) == 0 {
+		return service.ErrInvalidMetricName
+	}
+
+	mtrx, err := ms.List(ctx)
+	if err != nil {
+		return err
+	}
+	for _, metric := range *mt {
+		if metric.MType == service.GaugeMetric {
+			(*mtrx)[metric.ID] = metric
+		} else if metric.MType == service.CounterMetric {
+			if (*mtrx)[metric.ID].Delta != nil {
+				*(*mtrx)[metric.ID].Delta += *metric.Delta
+			} else {
+				(*mtrx)[metric.ID] = metric
+			}
+		} else {
+			return service.ErrInvalidMetricName
+		}
+
+	}
+
+	data, err := json.MarshalIndent(mtrx, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	err = ms.file.Truncate(0)
+	if err != nil {
+		return err
+	}
+
+	_, err = ms.file.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+
+	_, err = ms.file.Write(data)
+	return err
+}
+
+func (ms *FileStorage) Get(ctx context.Context, metricName string) (*service.Metrics, error) {
 	ms.syncMutex.Lock()
 	defer ms.syncMutex.Unlock()
 	if ms.file == nil {
@@ -82,7 +135,7 @@ func (ms *FileStorage) Get(metricName string) (*service.Metrics, error) {
 		return nil, service.ErrInvalidMetricName
 	}
 
-	mtrx, err := ms.List()
+	mtrx, err := ms.List(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +146,7 @@ func (ms *FileStorage) Get(metricName string) (*service.Metrics, error) {
 	return nil, service.ErrUnkonownMetric
 }
 
-func (ms *FileStorage) List() (*map[string]service.Metrics, error) {
+func (ms *FileStorage) List(ctx context.Context) (*map[string]service.Metrics, error) {
 	if ms.file == nil {
 		return nil, service.ErrUninitializedStorage
 	}
