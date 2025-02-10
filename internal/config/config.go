@@ -3,14 +3,16 @@ package config
 import (
 	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"time"
 )
 
 type ConfigServ struct {
 	Address         string
 	FileStoragePath string
+	StoreInterval   time.Duration
 	DBDsn           string
 	Restore         bool
 }
@@ -27,9 +29,15 @@ func (cfg *ConfigServ) check() error {
 	if os.IsNotExist(err) {
 		return ErrNoDirectory
 	}
-	if cfg.Address == "" {
+	/*if cfg.FileStoragePath == "" {
+		return ErrFileStoragePathEmpty
+	} else*/if cfg.Address == "" {
 		return ErrAddressEmpty
-	} else {
+	} else if cfg.StoreInterval < 0*time.Microsecond {
+		return ErrStoreIntetrvalNegativ
+	} /*else if cfg.DBDsn == "" {
+		return ErrDataBaseDsn
+	} else*/{
 		return nil
 	}
 }
@@ -55,8 +63,12 @@ func (cfg *ConfigServ) ParseFlags() error {
 	if envVarDB := os.Getenv("DATABASE_DSN"); envVarDB != "" {
 		cfg.DBDsn = envVarDB
 	}
-	fmt.Println(cfg.FileStoragePath)
-	fmt.Println(cfg.DBDsn)
-
+	if envStorInt := os.Getenv("STORE_INTERVAL"); envStorInt != "" {
+		storInt, _ = strconv.ParseInt(envStorInt, 10, 64)
+	}
+	if envReStor := os.Getenv("POLL_INTERVAL"); envReStor != "" {
+		cfg.Restore, _ = strconv.ParseBool(envReStor)
+	}
+	cfg.StoreInterval = time.Duration(storInt) * time.Second
 	return cfg.check()
 }

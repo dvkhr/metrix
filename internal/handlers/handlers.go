@@ -21,6 +21,7 @@ type MetricStorage interface {
 	SaveAll(ctx context.Context, mt *[]service.Metrics) error
 	Get(ctx context.Context, metricName string) (*service.Metrics, error)
 	List(ctx context.Context) (*map[string]service.Metrics, error)
+	ListSlice(ctx context.Context) (*[]service.Metrics, error)
 	NewStorage() error
 	FreeStorage() error
 	CheckStorage() error
@@ -283,6 +284,7 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 	var bufJSON bytes.Buffer
 	_, err := bufJSON.ReadFrom(req.Body)
 	if err != nil {
+		fmt.Println("1")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -291,20 +293,25 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 
 	if bufJSON.Len() > 0 {
 		if err := json.Unmarshal(bufJSON.Bytes(), &mTemp); err != nil {
+			fmt.Println("2", err)
+			fmt.Println(bufJSON.String())
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		if err := ms.MetricStorage.SaveAll(ctx, &mTemp); err != nil {
+			fmt.Println("3")
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
 	}
 	if allMtrx, err = ms.MetricStorage.List(ctx); err != nil {
+		fmt.Println("4")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	bufResp, err := json.Marshal(allMtrx)
 	if err != nil {
+		fmt.Println("5")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}

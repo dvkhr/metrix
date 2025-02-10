@@ -12,7 +12,6 @@ type MemStorage struct {
 
 func (ms *MemStorage) NewStorage() error {
 	ms.data = make(map[string]service.Metrics)
-
 	return nil
 }
 
@@ -56,6 +55,18 @@ func (ms *MemStorage) List(ctx context.Context) (*map[string]service.Metrics, er
 	}
 
 	return &ms.data, nil
+}
+
+func (ms *MemStorage) ListSlice(ctx context.Context) (*[]service.Metrics, error) {
+	if ms.data == nil {
+		return nil, service.ErrUninitializedStorage
+	}
+	metricsSlice := make([]service.Metrics, 0, len(ms.data))
+	for _, metric := range ms.data {
+		metricsSlice = append(metricsSlice, metric)
+	}
+
+	return &metricsSlice, nil
 }
 
 func (ms *MemStorage) FreeStorage() error {

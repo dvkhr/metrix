@@ -181,3 +181,27 @@ func (ms *FileStorage) CheckStorage() error {
 	}
 	return nil
 }
+func (ms *FileStorage) ListSlice(ctx context.Context) (*[]service.Metrics, error) {
+	if ms.file == nil {
+		return nil, service.ErrUninitializedStorage
+	}
+	var data []byte
+	var mtrx []service.Metrics
+
+	ms.file.Seek(0, 0)
+
+	data, err := io.ReadAll(ms.file)
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		mtrx = make([]service.Metrics, 0, len(data))
+		return &mtrx, nil
+	}
+
+	err = json.Unmarshal(data, &mtrx)
+	if err != nil {
+		return nil, err
+	}
+	return &mtrx, nil
+}

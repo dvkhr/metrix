@@ -40,7 +40,7 @@ func main() {
 		if sendInterval.IsZero() ||
 			time.Since(sendInterval) >= time.Duration(cfg.reportInterval)*time.Second {
 			fmt.Printf("+++Send metrics to server+++\n")
-			allMetrics, err := mStor.List(ctx)
+			allMetrics, err := mStor.ListSlice(ctx)
 			if err == nil {
 				/*	for _, metricStruct := range *allMetrics {
 						jsonMetric, err := json.Marshal(metricStruct)

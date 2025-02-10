@@ -166,3 +166,26 @@ func (ms *DBStorage) CheckStorage() error {
 	}
 	return nil
 }
+
+func (ms *DBStorage) ListSlice(ctx context.Context) (*[]service.Metrics, error) {
+	if ms.db.Ping() != nil {
+		return nil, service.ErrUninitializedStorage
+	}
+
+	var data []byte
+	var mtrx []service.Metrics
+
+	if err := ms.listStmt.QueryRow().Scan(&data); err != nil {
+		return nil, err
+	}
+
+	if len(data) == 0 {
+		mtrx = make([]service.Metrics, 0, len(data))
+		return &mtrx, nil
+	}
+
+	if err := json.Unmarshal(data, &mtrx); err != nil {
+		return nil, err
+	}
+	return &mtrx, nil
+}
