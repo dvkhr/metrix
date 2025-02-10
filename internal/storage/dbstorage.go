@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 
@@ -52,7 +53,7 @@ func (ms *DBStorage) NewStorage() error {
 	return nil
 }
 
-func (ms *DBStorage) Save(mt service.Metrics) error {
+func (ms *DBStorage) Save(ctx context.Context, mt service.Metrics) error {
 	if ms.db.Ping() != nil {
 		return service.ErrUninitializedStorage
 	}
@@ -62,16 +63,54 @@ func (ms *DBStorage) Save(mt service.Metrics) error {
 	}
 
 	if mt.MType == service.GaugeMetric {
-		ms.saveGaugeStmt.Exec(mt.ID, mt.MType, mt.Value)
+		if _, err := ms.saveGaugeStmt.Exec(mt.ID, mt.MType, mt.Value); err != nil {
+			return err
+		}
 	} else if mt.MType == service.CounterMetric {
-		ms.saveCounterStmt.Exec(mt.ID, mt.MType, mt.Delta)
+		if _, err := ms.saveCounterStmt.Exec(mt.ID, mt.MType, mt.Delta); err != nil {
+			return err
+		}
 	} else {
 		return service.ErrInvalidMetricName
 	}
 	return nil
 }
 
-func (ms *DBStorage) Get(metricName string) (*service.Metrics, error) {
+func (ms *DBStorage) SaveAll(ctx context.Context, mt *[]service.Metrics) error {
+	if ms.db.Ping() != nil {
+		return service.ErrUninitializedStorage
+	}
+
+	if len(*mt) == 0 {
+		return service.ErrInvalidMetricName
+	}
+
+	pgTx, err := ms.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	for _, metric := range *mt {
+		if metric.MType == service.GaugeMetric {
+			if _, err := ms.saveGaugeStmt.Exec(metric.ID, metric.MType, metric.Value); err != nil {
+				pgTx.Rollback()
+				return err
+			}
+		} else if metric.MType == service.CounterMetric {
+			if _, err := ms.saveCounterStmt.Exec(metric.ID, metric.MType, metric.Delta); err != nil {
+				pgTx.Rollback()
+				return err
+			}
+		} else {
+			pgTx.Rollback()
+			return service.ErrInvalidMetricName
+		}
+	}
+	pgTx.Commit()
+
+	return nil
+}
+
+func (ms *DBStorage) Get(ctx context.Context, metricName string) (*service.Metrics, error) {
 	if ms.db.Ping() != nil {
 		return nil, service.ErrUninitializedStorage
 	}
@@ -94,7 +133,7 @@ func (ms *DBStorage) Get(metricName string) (*service.Metrics, error) {
 	return &mtrx, nil
 }
 
-func (ms *DBStorage) List() (*map[string]service.Metrics, error) {
+func (ms *DBStorage) List(ctx context.Context) (*map[string]service.Metrics, error) {
 	if ms.db.Ping() != nil {
 		return nil, service.ErrUninitializedStorage
 	}

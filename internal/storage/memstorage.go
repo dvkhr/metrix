@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"context"
+
 	"github.com/dvkhr/metrix.git/internal/service"
 )
 
@@ -13,7 +15,7 @@ func (ms *MemStorage) NewStorage() error {
 	return nil
 }
 
-func (ms *MemStorage) Save(mt service.Metrics) error {
+func (ms *MemStorage) Save(ctx context.Context, mt service.Metrics) error {
 	if ms.data == nil {
 		return service.ErrUninitializedStorage
 	}
@@ -34,7 +36,7 @@ func (ms *MemStorage) Save(mt service.Metrics) error {
 	return nil
 }
 
-func (ms *MemStorage) Get(metricName string) (*service.Metrics, error) {
+func (ms *MemStorage) Get(ctx context.Context, metricName string) (*service.Metrics, error) {
 	if ms.data == nil {
 		return nil, service.ErrUninitializedStorage
 	}
@@ -47,7 +49,7 @@ func (ms *MemStorage) Get(metricName string) (*service.Metrics, error) {
 	return nil, service.ErrUnkonownMetric
 }
 
-func (ms *MemStorage) List() (*map[string]service.Metrics, error) {
+func (ms *MemStorage) List(ctx context.Context) (*map[string]service.Metrics, error) {
 	if ms.data == nil {
 		return nil, service.ErrUninitializedStorage
 	}
@@ -63,5 +65,29 @@ func (ms *MemStorage) CheckStorage() error {
 	if ms.data == nil {
 		return service.ErrUninitializedStorage
 	}
+	return nil
+}
+
+func (ms *MemStorage) SaveAll(ctx context.Context, mt *[]service.Metrics) error {
+	if ms.data == nil {
+		return service.ErrUninitializedStorage
+	}
+	if len(*mt) == 0 {
+		return service.ErrInvalidMetricName
+	}
+	for _, metric := range *mt {
+		if metric.MType == service.GaugeMetric {
+			ms.data[metric.ID] = metric
+		} else if metric.MType == service.CounterMetric {
+			if ms.data[metric.ID].Delta != nil {
+				*ms.data[metric.ID].Delta += *metric.Delta
+			} else {
+				ms.data[metric.ID] = metric
+			}
+		} else {
+			return service.ErrInvalidMetricName
+		}
+	}
+
 	return nil
 }

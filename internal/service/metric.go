@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,11 +33,11 @@ var ErrInvalidMetricName = errors.New("invalid metric name")
 var ErrUnkonownMetric = errors.New("unknown metric")
 
 type MetricStorage interface {
-	Save(mt Metrics) error
-	List() (*map[string]Metrics, error)
+	Save(ctx context.Context, mt Metrics) error
+	List(ctx context.Context) (*map[string]Metrics, error)
 }
 
-func CollectMetrics(ms MetricStorage) {
+func CollectMetrics(ctx context.Context, ms MetricStorage) {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
 	collectMetric := func(metricType MetricType, metricName string, metricValue any) {
@@ -49,7 +50,7 @@ func CollectMetrics(ms MetricStorage) {
 			temp := metricValue.(CounterMetricValue)
 			mt = Metrics{ID: metricName, MType: metricType, Delta: &temp}
 		}
-		err := ms.Save(mt)
+		err := ms.Save(ctx, mt)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: collecting %s metric %s:%v\n", metricType, metricName, err)
 		}
@@ -88,7 +89,8 @@ func CollectMetrics(ms MetricStorage) {
 
 func DumpMetrics(ms MetricStorage, wr io.Writer) error {
 
-	mtrx, err := ms.List()
+	ctx := context.TODO()
+	mtrx, err := ms.List(ctx)
 	if err != nil {
 		return err
 	}
@@ -100,6 +102,7 @@ func DumpMetrics(ms MetricStorage, wr io.Writer) error {
 	return err
 }
 func RestoreMetrics(ms MetricStorage, rd io.Reader) error {
+	ctx := context.TODO()
 	var data []byte
 
 	data, err := io.ReadAll(rd)
@@ -107,7 +110,7 @@ func RestoreMetrics(ms MetricStorage, rd io.Reader) error {
 		return err
 	}
 
-	stor, err := ms.List()
+	stor, err := ms.List(ctx)
 	if err != nil {
 		return err
 	}
