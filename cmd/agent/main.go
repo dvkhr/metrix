@@ -37,39 +37,53 @@ func sendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept-Encoding", "gzip")
 		req.Header.Set("Content-Encoding", "gzip")
-		for i := 0; i < 3; i++ {
-			resp, err := cl.Do(req)
-			if err == nil {
-				fmt.Println(resp.StatusCode)
-				defer resp.Body.Close()
-				var reader io.ReadCloser
-				switch resp.Header.Get("Content-Encoding") {
-				case "gzip":
-					reader, err = gzip.NewReader(resp.Body)
-					if err != nil {
-						fmt.Println("FAIL create gzip reader: %w", err)
-					}
-					defer reader.Close()
-				default:
-					reader = resp.Body
-				}
-				body, err := io.ReadAll(reader)
+		resp, err := cl.Do(req)
+		if err == nil {
+			fmt.Println(resp.StatusCode)
+			defer resp.Body.Close()
+			var reader io.ReadCloser
+			switch resp.Header.Get("Content-Encoding") {
+			case "gzip":
+				reader, err = gzip.NewReader(resp.Body)
 				if err != nil {
-					fmt.Println("FAIL reader response body: %w", err)
-					return err
+					fmt.Println("FAIL create gzip reader: %w", err)
 				}
-				fmt.Println(string(body))
-			} else if os.IsTimeout(err) {
-				time.Sleep(time.Duration(2*i+1) * time.Second)
-			} else {
-				fmt.Fprintf(os.Stderr, "error sending metrics: %v\n", err)
-				break
+				defer reader.Close()
+			default:
+				reader = resp.Body
 			}
+			body, err := io.ReadAll(reader)
+			if err != nil {
+				fmt.Println("FAIL reader response body: %w", err)
+				return err
+			}
+			fmt.Println(string(body))
+		} else {
+			return err
 		}
-
 		mStor.NewStorage()
 	}
 	return nil
+}
+
+type send func(storage.MemStorage, context.Context, *http.Client, Config) error
+
+func Retry(sendMetrics send, retries int) send {
+	return func(mStor storage.MemStorage, ctx context.Context, cl *http.Client, cfg Config) error {
+		for r := 0; ; r++ {
+			nextAttemptAfter := time.Duration(2*r+1) * time.Second
+			err := sendMetrics(mStor, ctx, cl, cfg)
+			if err == nil || r >= retries {
+				return err
+			}
+			fmt.Printf("Attempt %d failed; retrying in %v\n", r+1, nextAttemptAfter)
+			select {
+			case <-time.After(nextAttemptAfter):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
 }
 
 func main() {
@@ -96,7 +110,8 @@ func main() {
 
 		if sendInterval.IsZero() ||
 			time.Since(sendInterval) >= time.Duration(cfg.reportInterval)*time.Second {
-			err := sendMetrics(mStor, ctx, cl, cfg)
+			r := Retry(sendMetrics, 3)
+			err = r(mStor, ctx, cl, cfg)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -106,15 +121,6 @@ func main() {
 	}
 }
 
-/*func buildMetricURL(serverAddress string) string {
-	serverURL := &url.URL{
-		Scheme: "http",
-		Host:   fmt.Sprint(serverAddress),
-		Path:   "update/",
-	}
-	return serverURL.String()
-}*/
-
 func buildAllMetricsURL(serverAddress string) string {
 	serverURL := &url.URL{
 		Scheme: "http",
@@ -123,19 +129,3 @@ func buildAllMetricsURL(serverAddress string) string {
 	}
 	return serverURL.String()
 }
-
-/*func callURL(cl *http.Client, url string, bodyJSON io.Reader) error {
-
-	res, err := cl.Post(url, "application/json", bodyJSON)
-	res.Header.Set("Accept-Encoding", "gzip")
-	res.Header.Set("Content-Encoding", "gzip")
-	if err != nil {
-		return err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return errors.New("bad http status")
-	}
-	return nil
-}*/

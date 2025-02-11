@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 
 	"github.com/dvkhr/metrix.git/internal/service"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type DBStorage struct {
@@ -25,7 +28,11 @@ func (ms *DBStorage) NewStorage() error {
 
 	var createStmt = "create table if not exists metrix (id varchar(32) PRIMARY KEY, value jsonb not null)"
 	if _, err = ms.db.Exec(createStmt); err != nil {
-		return nil
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			fmt.Printf("%v\n", pgErr.Code)
+		}
+		return err
 	}
 
 	if ms.saveGaugeStmt, err = ms.db.Prepare("insert into metrix " +
