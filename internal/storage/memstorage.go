@@ -57,7 +57,7 @@ func (ms *MemStorage) List(ctx context.Context) (*map[string]service.Metrics, er
 	return &ms.data, nil
 }
 
-func (ms *MemStorage) ListSlice(ctx context.Context) (*[]service.Metrics, error) {
+func (ms *MemStorage) ListSlice(ctx context.Context) ([]service.Metrics, error) {
 	if ms.data == nil {
 		return nil, service.ErrUninitializedStorage
 	}
@@ -66,7 +66,7 @@ func (ms *MemStorage) ListSlice(ctx context.Context) (*[]service.Metrics, error)
 		metricsSlice = append(metricsSlice, metric)
 	}
 
-	return &metricsSlice, nil
+	return metricsSlice, nil
 }
 
 func (ms *MemStorage) FreeStorage() error {

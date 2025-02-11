@@ -16,10 +16,67 @@ import (
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
+func sendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client, cfg Config) error {
+
+	fmt.Printf("+++Send metrics to server+++\n")
+	allMetrics, err := mStor.ListSlice(ctx)
+	if err == nil {
+		jsonMetric, err := json.Marshal(allMetrics)
+		if err != nil {
+			return err
+		}
+		var requestBody bytes.Buffer
+		gz := gzip.NewWriter(&requestBody)
+		gz.Write(jsonMetric)
+		gz.Close()
+
+		req, err := http.NewRequest("POST", buildAllMetricsURL(cfg.serverAddress), &requestBody)
+		if err != nil {
+			fmt.Println(err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept-Encoding", "gzip")
+		req.Header.Set("Content-Encoding", "gzip")
+		for i := 0; i < 3; i++ {
+			resp, err := cl.Do(req)
+			if err == nil {
+				fmt.Println(resp.StatusCode)
+				defer resp.Body.Close()
+				var reader io.ReadCloser
+				switch resp.Header.Get("Content-Encoding") {
+				case "gzip":
+					reader, err = gzip.NewReader(resp.Body)
+					if err != nil {
+						fmt.Println("FAIL create gzip reader: %w", err)
+					}
+					defer reader.Close()
+				default:
+					reader = resp.Body
+				}
+				body, err := io.ReadAll(reader)
+				if err != nil {
+					fmt.Println("FAIL reader response body: %w", err)
+					return err
+				}
+				fmt.Println(string(body))
+			} else if os.IsTimeout(err) {
+				time.Sleep(time.Duration(2*i+1) * time.Second)
+			} else {
+				fmt.Fprintf(os.Stderr, "error sending metrics: %v\n", err)
+				break
+			}
+		}
+
+		mStor.NewStorage()
+	}
+	return nil
+}
+
 func main() {
 	var cfg Config
 	ctx := context.TODO()
 	err := cfg.parseFlags()
+
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -39,92 +96,9 @@ func main() {
 
 		if sendInterval.IsZero() ||
 			time.Since(sendInterval) >= time.Duration(cfg.reportInterval)*time.Second {
-			fmt.Printf("+++Send metrics to server+++\n")
-			allMetrics, err := mStor.ListSlice(ctx)
-			if err == nil {
-				/*	for _, metricStruct := range *allMetrics {
-						jsonMetric, err := json.Marshal(metricStruct)
-						if err != nil {
-							continue
-						}
-						var requestBody bytes.Buffer
-						gz := gzip.NewWriter(&requestBody)
-						gz.Write(jsonMetric)
-						gz.Close()
-
-						req, err := http.NewRequest("POST", buildMetricURL(cfg.serverAddress), &requestBody)
-						if err != nil {
-							fmt.Println(err)
-						}
-						req.Header.Set("Content-Type", "application/json")
-						req.Header.Set("Accept-Encoding", "gzip")
-						req.Header.Set("Content-Encoding", "gzip")
-						resp, err := cl.Do(req)
-						if err == nil {
-							fmt.Println(resp.StatusCode)
-							defer resp.Body.Close()
-							var reader io.ReadCloser
-							switch resp.Header.Get("Content-Encoding") {
-							case "gzip":
-								reader, err = gzip.NewReader(resp.Body)
-								if err != nil {
-									fmt.Println("FAIL create gzip reader: %w", err)
-								}
-								defer reader.Close()
-							default:
-								reader = resp.Body
-							}
-							body, err := io.ReadAll(reader)
-							if err != nil {
-								fmt.Println("FAIL reader response body: %w", err)
-								return
-							}
-							fmt.Println(string(body))
-						}
-
-						mStor.NewStorage()
-					}
-				}*/
-				jsonMetric, err := json.Marshal(allMetrics)
-				if err != nil {
-					continue
-				}
-				var requestBody bytes.Buffer
-				gz := gzip.NewWriter(&requestBody)
-				gz.Write(jsonMetric)
-				gz.Close()
-
-				req, err := http.NewRequest("POST", buildAllMetricsURL(cfg.serverAddress), &requestBody)
-				if err != nil {
-					fmt.Println(err)
-				}
-				req.Header.Set("Content-Type", "application/json")
-				req.Header.Set("Accept-Encoding", "gzip")
-				req.Header.Set("Content-Encoding", "gzip")
-				resp, err := cl.Do(req)
-				if err == nil {
-					fmt.Println(resp.StatusCode)
-					defer resp.Body.Close()
-					var reader io.ReadCloser
-					switch resp.Header.Get("Content-Encoding") {
-					case "gzip":
-						reader, err = gzip.NewReader(resp.Body)
-						if err != nil {
-							fmt.Println("FAIL create gzip reader: %w", err)
-						}
-						defer reader.Close()
-					default:
-						reader = resp.Body
-					}
-					body, err := io.ReadAll(reader)
-					if err != nil {
-						fmt.Println("FAIL reader response body: %w", err)
-						return
-					}
-					fmt.Println(string(body))
-				}
-
-				mStor.NewStorage()
+			err := sendMetrics(mStor, ctx, cl, cfg)
+			if err != nil {
+				fmt.Println(err)
 			}
 			sendInterval = time.Now()
 		}

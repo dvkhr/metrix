@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 	"text/template"
 
 	"github.com/dvkhr/metrix.git/internal/config"
@@ -21,7 +22,7 @@ type MetricStorage interface {
 	SaveAll(ctx context.Context, mt *[]service.Metrics) error
 	Get(ctx context.Context, metricName string) (*service.Metrics, error)
 	List(ctx context.Context) (*map[string]service.Metrics, error)
-	ListSlice(ctx context.Context) (*[]service.Metrics, error)
+	ListSlice(ctx context.Context) ([]service.Metrics, error)
 	NewStorage() error
 	FreeStorage() error
 	CheckStorage() error
@@ -30,6 +31,7 @@ type MetricStorage interface {
 type MetricsServer struct {
 	MetricStorage MetricStorage
 	Config        config.ConfigServ
+	syncMutex     sync.Mutex
 }
 
 func NewMetricsServer(Config config.ConfigServ) (*MetricsServer, error) {
@@ -60,7 +62,11 @@ func (ms *MetricsServer) NotfoundMetricRq(res http.ResponseWriter, req *http.Req
 }
 
 func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
 	ctx := context.TODO()
+
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -83,12 +89,15 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 	mTemp.MType = service.GaugeMetric
 
 	ms.MetricStorage.Save(ctx, *mTemp)
-	res.WriteHeader(http.StatusOK)
 	ms.MetricStorage.Get(ctx, req.PathValue("name"))
 	res.WriteHeader(http.StatusOK)
 }
 
 func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
+	ctx := context.TODO()
 
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
@@ -111,12 +120,17 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 	mTemp.Delta = &vtemp
 	mTemp.MType = service.CounterMetric
 
-	ms.MetricStorage.Save(req.Context(), *mTemp)
+	ms.MetricStorage.Save(ctx, *mTemp)
+	ms.MetricStorage.Get(ctx, req.PathValue("name"))
 	res.WriteHeader(http.StatusOK)
 }
 
 func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
 	ctx := context.TODO()
+
 	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
@@ -271,7 +285,11 @@ func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Reque
 }
 
 func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
 	ctx := context.TODO()
+
 	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
@@ -284,7 +302,6 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 	var bufJSON bytes.Buffer
 	_, err := bufJSON.ReadFrom(req.Body)
 	if err != nil {
-		fmt.Println("1")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -293,25 +310,20 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 
 	if bufJSON.Len() > 0 {
 		if err := json.Unmarshal(bufJSON.Bytes(), &mTemp); err != nil {
-			fmt.Println("2", err)
-			fmt.Println(bufJSON.String())
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		if err := ms.MetricStorage.SaveAll(ctx, &mTemp); err != nil {
-			fmt.Println("3")
 			res.WriteHeader(http.StatusBadRequest)
 			return
 		}
 	}
 	if allMtrx, err = ms.MetricStorage.List(ctx); err != nil {
-		fmt.Println("4")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	bufResp, err := json.Marshal(allMtrx)
 	if err != nil {
-		fmt.Println("5")
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}

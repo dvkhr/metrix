@@ -13,17 +13,25 @@ type Config struct {
 	pollInterval   int64
 }
 
-var ErrIntetrvalNegativ = errors.New("interval is negativ or zero")
-var ErrAddressEmpty = errors.New("address is an empty string")
+var (
+	ErrPollIntetrvalNegativ   = errors.New("poll interval is negativ or zero")
+	ErrReportIntetrvalNegativ = errors.New("report interval is negativ or zero")
+	ErrAddressEmpty           = errors.New("address is an empty string")
+)
 
 func (cfg *Config) check() error {
+	var err []error
 	if cfg.serverAddress == "" {
-		return ErrAddressEmpty
-	} else if cfg.pollInterval <= 0 || cfg.reportInterval <= 0 {
-		return ErrIntetrvalNegativ
-	} else {
-		return nil
+		err = append(err, ErrAddressEmpty)
 	}
+	if cfg.pollInterval <= 0 {
+		err = append(err, ErrPollIntetrvalNegativ)
+	}
+	if cfg.reportInterval <= 0 {
+		err = append(err, ErrReportIntetrvalNegativ)
+	}
+
+	return errors.Join(err...)
 }
 
 func (cfg *Config) parseFlags() error {

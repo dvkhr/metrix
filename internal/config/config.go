@@ -17,29 +17,24 @@ type ConfigServ struct {
 	Restore         bool
 }
 
-var ErrStoreIntetrvalNegativ = errors.New("storeInterval is negativ or zero")
-var ErrFileStoragePathEmpty = errors.New("fileStoragePath is empty string")
-var ErrAddressEmpty = errors.New("address is an empty string")
-var ErrNoDirectory = errors.New("no direcrtory in the path")
-var ErrDataBaseDsn = errors.New("databasedsn is empty string")
+var (
+	ErrStoreIntetrvalNegativ = errors.New("storeInterval is negativ or zero")
+	ErrAddressEmpty          = errors.New("address is an empty string")
+)
 
 func (cfg *ConfigServ) check() error {
+	var errs []error
 	dirPath := filepath.Dir(cfg.FileStoragePath)
 	_, err := os.Stat(dirPath)
 	if os.IsNotExist(err) {
-		return ErrNoDirectory
+		errs = append(errs, err)
 	}
-	/*if cfg.FileStoragePath == "" {
-		return ErrFileStoragePathEmpty
-	} else*/if cfg.Address == "" {
-		return ErrAddressEmpty
+	if len(cfg.Address) == 0 {
+		errs = append(errs, ErrAddressEmpty)
 	} else if cfg.StoreInterval < 0*time.Microsecond {
-		return ErrStoreIntetrvalNegativ
-	} /*else if cfg.DBDsn == "" {
-		return ErrDataBaseDsn
-	} else*/{
-		return nil
+		errs = append(errs, ErrStoreIntetrvalNegativ)
 	}
+	return errors.Join(errs...)
 }
 
 func (cfg *ConfigServ) ParseFlags() error {

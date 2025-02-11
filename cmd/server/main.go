@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,7 +18,7 @@ func main() {
 	var cfg config.ConfigServ
 	err := cfg.ParseFlags()
 	if err != nil {
-		fmt.Println(err)
+		logger.Sugar.Errorln(err)
 		os.Exit(1)
 	}
 

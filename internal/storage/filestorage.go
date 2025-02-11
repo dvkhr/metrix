@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"io"
 	"os"
-	"sync"
 
 	"github.com/dvkhr/metrix.git/internal/service"
 )
@@ -13,7 +12,6 @@ import (
 type FileStorage struct {
 	FileStoragePath string
 	file            *os.File
-	syncMutex       sync.Mutex
 }
 
 func (ms *FileStorage) NewStorage() error {
@@ -24,9 +22,6 @@ func (ms *FileStorage) NewStorage() error {
 
 func (ms *FileStorage) Save(ctx context.Context, mt service.Metrics) error {
 	defer ms.file.Sync()
-
-	ms.syncMutex.Lock()
-	defer ms.syncMutex.Unlock()
 
 	if ms.file == nil {
 		return service.ErrUninitializedStorage
@@ -75,9 +70,6 @@ func (ms *FileStorage) Save(ctx context.Context, mt service.Metrics) error {
 func (ms *FileStorage) SaveAll(ctx context.Context, mt *[]service.Metrics) error {
 	defer ms.file.Sync()
 
-	ms.syncMutex.Lock()
-	defer ms.syncMutex.Unlock()
-
 	if ms.file == nil {
 		return service.ErrUninitializedStorage
 	}
@@ -125,8 +117,6 @@ func (ms *FileStorage) SaveAll(ctx context.Context, mt *[]service.Metrics) error
 }
 
 func (ms *FileStorage) Get(ctx context.Context, metricName string) (*service.Metrics, error) {
-	ms.syncMutex.Lock()
-	defer ms.syncMutex.Unlock()
 	if ms.file == nil {
 		return nil, service.ErrUninitializedStorage
 	}
@@ -181,7 +171,7 @@ func (ms *FileStorage) CheckStorage() error {
 	}
 	return nil
 }
-func (ms *FileStorage) ListSlice(ctx context.Context) (*[]service.Metrics, error) {
+func (ms *FileStorage) ListSlice(ctx context.Context) ([]service.Metrics, error) {
 	if ms.file == nil {
 		return nil, service.ErrUninitializedStorage
 	}
@@ -196,12 +186,12 @@ func (ms *FileStorage) ListSlice(ctx context.Context) (*[]service.Metrics, error
 	}
 	if len(data) == 0 {
 		mtrx = make([]service.Metrics, 0, len(data))
-		return &mtrx, nil
+		return mtrx, nil
 	}
 
 	err = json.Unmarshal(data, &mtrx)
 	if err != nil {
 		return nil, err
 	}
-	return &mtrx, nil
+	return mtrx, nil
 }
