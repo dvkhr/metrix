@@ -2,44 +2,55 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"sync"
 	"text/template"
-	"time"
 
 	"github.com/dvkhr/metrix.git/internal/config"
-	"github.com/dvkhr/metrix.git/internal/logger"
 	"github.com/dvkhr/metrix.git/internal/service"
+	"github.com/dvkhr/metrix.git/internal/storage"
 	"github.com/go-chi/chi/v5"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 type MetricStorage interface {
-	Save(mt service.Metrics) error
-	Get(metricName string) (*service.Metrics, error)
-	List() (*map[string]service.Metrics, error)
-	NewMemStorage()
+	Save(ctx context.Context, mt service.Metrics) error
+	SaveAll(ctx context.Context, mt *[]service.Metrics) error
+	Get(ctx context.Context, metricName string) (*service.Metrics, error)
+	List(ctx context.Context) (*map[string]service.Metrics, error)
+	ListSlice(ctx context.Context) ([]service.Metrics, error)
+	NewStorage() error
+	FreeStorage() error
+	CheckStorage() error
 }
 
 type MetricsServer struct {
 	MetricStorage MetricStorage
 	Config        config.ConfigServ
-	Sync          bool
-	mutex         sync.Mutex
+	syncMutex     sync.Mutex
 }
 
-func NewMetricsServer(MetricStorage MetricStorage, Config config.ConfigServ) *MetricsServer {
-	MetricStorage.NewMemStorage()
-	var s bool
-	if Config.StoreInterval == 0*time.Second {
-		s = true
+func NewMetricsServer(Config config.ConfigServ) (*MetricsServer, error) {
+	var ms MetricStorage
+	if len(Config.DBDsn) > 0 {
+		ms = &storage.DBStorage{DBDSN: Config.DBDsn}
+
+	} else if len(Config.FileStoragePath) > 0 {
+		ms = &storage.FileStorage{FileStoragePath: Config.FileStoragePath}
+
 	} else {
-		s = false
+		ms = &storage.MemStorage{}
 	}
-	return &MetricsServer{MetricStorage: MetricStorage, Config: Config, Sync: s}
+
+	if err := ms.NewStorage(); err != nil {
+		return nil, err
+	}
+
+	return &MetricsServer{MetricStorage: ms, Config: Config}, nil
 }
 
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
@@ -51,6 +62,11 @@ func (ms *MetricsServer) NotfoundMetricRq(res http.ResponseWriter, req *http.Req
 }
 
 func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
+	ctx := context.TODO()
+
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
@@ -72,13 +88,16 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 	mTemp.Value = &vtemp
 	mTemp.MType = service.GaugeMetric
 
-	ms.MetricStorage.Save(*mTemp)
-	res.WriteHeader(http.StatusOK)
-	ms.MetricStorage.Get(req.PathValue("name"))
+	ms.MetricStorage.Save(ctx, *mTemp)
+	ms.MetricStorage.Get(ctx, req.PathValue("name"))
 	res.WriteHeader(http.StatusOK)
 }
 
 func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
+	ctx := context.TODO()
 
 	if req.Method != http.MethodPost {
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
@@ -101,11 +120,17 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 	mTemp.Delta = &vtemp
 	mTemp.MType = service.CounterMetric
 
-	ms.MetricStorage.Save(*mTemp)
+	ms.MetricStorage.Save(ctx, *mTemp)
+	ms.MetricStorage.Get(ctx, req.PathValue("name"))
 	res.WriteHeader(http.StatusOK)
 }
 
 func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
+	ctx := context.TODO()
+
 	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
@@ -125,12 +150,12 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	if err := ms.MetricStorage.Save(*mTemp); err != nil {
+	if err := ms.MetricStorage.Save(ctx, *mTemp); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	if mTemp, err = ms.MetricStorage.Get(mTemp.ID); err != nil {
+	if mTemp, err = ms.MetricStorage.Get(ctx, mTemp.ID); err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -141,16 +166,13 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 		return
 	}
 
-	if ms.Sync {
-		ms.DumpMetrics()
-	}
-
 	res.Write(bufResp)
 	res.WriteHeader(http.StatusOK)
 
 }
 
 func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Request) {
+	ctx := context.TODO()
 	res.Header().Set("Content-Type", "application/json")
 
 	if req.Method != http.MethodPost {
@@ -173,7 +195,7 @@ func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Reques
 
 	mType := mTemp.MType
 
-	if mTemp, err = ms.MetricStorage.Get(mTemp.ID); err != nil {
+	if mTemp, err = ms.MetricStorage.Get(ctx, mTemp.ID); err != nil {
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -194,6 +216,7 @@ func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Reques
 }
 
 func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Request) {
+	ctx := context.TODO()
 	res.Header().Set("Content-Type", "text/html")
 	if req.Method != http.MethodGet {
 		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
@@ -206,7 +229,7 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 	}
 	n := chi.URLParam(req, "name")
 	//mTemp := &metric.Metrics{}
-	mTemp, err := ms.MetricStorage.Get(n)
+	mTemp, err := ms.MetricStorage.Get(ctx, n)
 	if err != nil {
 		http.Error(res, "Metric not found!", http.StatusNotFound)
 		return
@@ -222,67 +245,90 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 }
 
 func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
+	ctx := context.TODO()
 	res.Header().Set("Content-Type", "text/html")
+
 	if req.Method != http.MethodGet {
 		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
 	tmpl, err := template.ParseFiles("cmd/server/static/index.html.tmpl")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	mtrx, err := ms.MetricStorage.List()
+	mtrx, err := ms.MetricStorage.List(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	err = tmpl.Execute(res, *mtrx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		http.Error(res, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	res.WriteHeader(http.StatusOK)
 }
-func (ms *MetricsServer) DumpMetrics() {
-	file, err := os.OpenFile(ms.Config.FileStoragePath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
-	if err != nil {
-		logger.Sugar.Errorln("unable open file", "file", ms.Config.FileStoragePath, "error", err)
-	}
-	ms.mutex.Lock()
-	err = service.DumpMetrics(ms.MetricStorage, file)
-	if err != nil {
-		logger.Sugar.Errorln("unable dump metrics", "error", err)
-	}
-	err = file.Sync()
-	if err != nil {
-		logger.Sugar.Errorln("unable sync file", "error", err)
-	}
-	ms.mutex.Unlock()
-	err = file.Close()
-	if err != nil {
-		logger.Sugar.Errorln("unable close file", "error", err)
+
+func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
+		return
 	}
 
-	logger.Sugar.Infoln("metrics dumped")
+	if err := ms.MetricStorage.CheckStorage(); err != nil {
+		http.Error(res, "database connection failed", http.StatusInternalServerError)
+		return
+	}
+	res.WriteHeader(http.StatusOK)
+	res.Write([]byte("Status OK"))
 }
-func (ms *MetricsServer) LoadMetrics() {
-	file, err := os.OpenFile(ms.Config.FileStoragePath, os.O_RDONLY, 0666)
+
+func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request) {
+	ms.syncMutex.Lock()
+	defer ms.syncMutex.Unlock()
+
+	ctx := context.TODO()
+
+	res.Header().Set("Content-Type", "application/json")
+
+	if req.Method != http.MethodPost {
+		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
+		return
+	}
+	var allMtrx *map[string]service.Metrics
+	var mTemp []service.Metrics
+
+	var bufJSON bytes.Buffer
+	_, err := bufJSON.ReadFrom(req.Body)
 	if err != nil {
-		logger.Sugar.Errorln("unable open file", "file", ms.Config.FileStoragePath, "error", err)
-	} else {
-		err = service.RestoreMetrics(ms.MetricStorage, file)
-		if err != nil {
-			logger.Sugar.Errorln("unable to restore metrics", "error", err)
-		} else {
-			logger.Sugar.Infoln("metrics restored")
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	defer req.Body.Close()
+
+	if bufJSON.Len() > 0 {
+		if err := json.Unmarshal(bufJSON.Bytes(), &mTemp); err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			return
 		}
-		file.Close()
-		if err != nil {
-			logger.Sugar.Errorln("unable close file", "error", err)
+		if err := ms.MetricStorage.SaveAll(ctx, &mTemp); err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			return
 		}
 	}
+	if allMtrx, err = ms.MetricStorage.List(ctx); err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	bufResp, err := json.Marshal(allMtrx)
+	if err != nil {
+		res.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	res.Write(bufResp)
+	res.WriteHeader(http.StatusOK)
+
 }

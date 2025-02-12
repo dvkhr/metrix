@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,7 +11,6 @@ import (
 	"github.com/dvkhr/metrix.git/internal/gzip"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logger"
-	"github.com/dvkhr/metrix.git/internal/storage"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -20,21 +18,22 @@ func main() {
 	var cfg config.ConfigServ
 	err := cfg.ParseFlags()
 	if err != nil {
-		fmt.Println(err)
+		logger.Sugar.Errorln(err)
 		os.Exit(1)
 	}
 
-	MetricServer := handlers.NewMetricsServer(&storage.MemStorage{}, cfg)
-
-	if cfg.Restore {
-		MetricServer.LoadMetrics()
+	MetricServer, err := handlers.NewMetricsServer(cfg)
+	if err != nil {
+		logger.Sugar.Errorln("unable to initialize storage", "error", err)
+		os.Exit(1)
 	}
 
 	r := chi.NewRouter()
-
 	r.Get("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.HandleGetAllMetrics)))
 	r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
+	r.Get("/ping", logger.WithLogging(MetricServer.CheckDBConnect))
 	r.Post("/value/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.ExtractMetric)))
+	r.Post("/updates/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.UpdateBatch)))
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.UpdateMetric)))
 		r.Post("/*", logger.WithLogging(MetricServer.IncorrectMetricRq))
@@ -57,14 +56,6 @@ func main() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	if !MetricServer.Sync {
-		go func() {
-			for {
-				time.Sleep(time.Duration(cfg.StoreInterval) * time.Second)
-				MetricServer.DumpMetrics()
-			}
-		}()
-	}
 	go func() {
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Sugar.Fatalw(err.Error(), "event", "start server")
@@ -81,7 +72,7 @@ func main() {
 		logger.Sugar.Fatalw(err.Error(), "event", "server forced to shutdown", "error", err)
 	}
 
-	MetricServer.DumpMetrics()
+	MetricServer.MetricStorage.FreeStorage()
 
 	logger.Sugar.Infoln("server shut down completed")
 }

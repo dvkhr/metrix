@@ -27,7 +27,7 @@ func TestMemStorage_NewMemStorage(t *testing.T) {
 				data: tt.fields.data,
 			}
 
-			ms.NewMemStorage()
+			ms.NewStorage()
 
 			if ms.data == nil {
 				t.Errorf("MemStorage.NewMemStroage() must initialize MemStroage.data map")
