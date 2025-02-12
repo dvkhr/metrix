@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -23,7 +24,7 @@ type DBStorage struct {
 func (ms *DBStorage) NewStorage() error {
 	var err error
 	if ms.db, err = sql.Open("pgx", ms.DBDSN); err != nil {
-		return nil
+		return err
 	}
 
 	var createStmt = "create table if not exists metrix (id varchar(32) PRIMARY KEY, value jsonb not null)"
@@ -60,6 +61,29 @@ func (ms *DBStorage) NewStorage() error {
 	return nil
 }
 
+func isPgTransportError(err error) bool {
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code[2:] == "08" {
+			return true
+		}
+	}
+	return false
+}
+
+func (ms *DBStorage) retry(f func() error, maxRetries int) error {
+	var err error
+	for i := 0; i < maxRetries; i++ {
+		err = f()
+		if err == nil || !isPgTransportError(err) {
+			return err
+		}
+		fmt.Printf("%v\n", err)
+		time.Sleep(time.Duration(2*i+1) * time.Second)
+	}
+	return err
+}
+
 func (ms *DBStorage) Save(ctx context.Context, mt service.Metrics) error {
 	if ms.db.Ping() != nil {
 		return service.ErrUninitializedStorage
@@ -70,6 +94,7 @@ func (ms *DBStorage) Save(ctx context.Context, mt service.Metrics) error {
 	}
 
 	if mt.MType == service.GaugeMetric {
+
 		if _, err := ms.saveGaugeStmt.Exec(mt.ID, mt.MType, mt.Value); err != nil {
 			return err
 		}
@@ -128,8 +153,11 @@ func (ms *DBStorage) Get(ctx context.Context, metricName string) (*service.Metri
 
 	var data []byte
 	var mtrx service.Metrics
-
-	if err := ms.getStmt.QueryRow(metricName).Scan(&data); err != nil {
+	err := ms.retry(func() error {
+		err := ms.getStmt.QueryRow(metricName).Scan(&data)
+		return err
+	}, 3)
+	if err != nil {
 		return nil, err
 	}
 
@@ -147,8 +175,11 @@ func (ms *DBStorage) List(ctx context.Context) (*map[string]service.Metrics, err
 
 	var data []byte
 	var mtrx map[string]service.Metrics
-
-	if err := ms.listStmt.QueryRow().Scan(&data); err != nil {
+	err := ms.retry(func() error {
+		err := ms.listStmt.QueryRow().Scan(&data)
+		return err
+	}, 3)
+	if err != nil {
 		return nil, err
 	}
 
@@ -168,8 +199,12 @@ func (ms *DBStorage) FreeStorage() error {
 }
 
 func (ms *DBStorage) CheckStorage() error {
-	if ms.db.Ping() != nil {
-		return service.ErrUninitializedStorage
+	err := ms.retry(func() error {
+		err := ms.db.Ping()
+		return err
+	}, 3)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -182,7 +217,11 @@ func (ms *DBStorage) ListSlice(ctx context.Context) ([]service.Metrics, error) {
 	var data []byte
 	var mtrx []service.Metrics
 
-	if err := ms.listStmt.QueryRow().Scan(&data); err != nil {
+	err := ms.retry(func() error {
+		err := ms.listStmt.QueryRow().Scan(&data)
+		return err
+	}, 3)
+	if err != nil {
 		return nil, err
 	}
 
