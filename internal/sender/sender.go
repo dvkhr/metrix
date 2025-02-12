@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-func sendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string) error {
+func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string) error {
 
 	fmt.Printf("+++Send metrics to server+++\n")
 	allMetrics, err := mStor.ListSlice(ctx)
@@ -26,7 +27,7 @@ func sendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 		gz.Write(jsonMetric)
 		gz.Close()
 
-		req, err := http.NewRequest("POST", buildAllMetricsURL(serverAddress), &requestBody)
+		req, err := http.NewRequest("POST", BuildAllMetricsURL(serverAddress), &requestBody)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -60,4 +61,13 @@ func sendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 		mStor.NewStorage()
 	}
 	return nil
+}
+
+func BuildAllMetricsURL(serverAddress string) string {
+	serverURL := &url.URL{
+		Scheme: "http",
+		Host:   fmt.Sprint(serverAddress),
+		Path:   "updates/",
+	}
+	return serverURL.String()
 }
