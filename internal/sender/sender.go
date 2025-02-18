@@ -37,10 +37,9 @@ func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 		}
 
 		if len(signKey) > 0 {
-			signBuf := requestBody.Bytes()
+			signBuf := jsonMetric
 			signBuf = append(signBuf, ',')
 			signBuf = append(signBuf, signKey...)
-
 			sign := sha256.Sum256(signBuf)
 			req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
 		}

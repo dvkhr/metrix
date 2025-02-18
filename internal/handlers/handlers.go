@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"sync"
@@ -331,11 +330,7 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 		return
 	}
 	if len(ms.Config.Key) > 0 {
-		signBuf, err := io.ReadAll(req.Body)
-		if err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
+		signBuf := bufResp
 		signBuf = append(signBuf, ',')
 		signBuf = append(signBuf, ms.Config.Key...)
 
