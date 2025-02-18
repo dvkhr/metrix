@@ -1,4 +1,4 @@
-package sign_check
+package sign
 
 import (
 	"crypto/sha256"
