@@ -13,6 +13,7 @@ type AgentConfig struct {
 	serverAddress  string
 	reportInterval int64
 	pollInterval   int64
+	key            string
 }
 
 var (
@@ -40,6 +41,8 @@ func (cfg *AgentConfig) parseFlags() error {
 	flag.StringVar(&cfg.serverAddress, "a", "localhost:8080", "Endpoint HTTP-server")
 	flag.Int64Var(&cfg.reportInterval, "r", 10, "Frequency of sending metrics in seconds")
 	flag.Int64Var(&cfg.pollInterval, "p", 2, "Frequency of metric polling in seconds")
+	flag.StringVar(&cfg.key, "k", "", "Key")
+
 	flag.Parse()
 
 	if envVarAddr := os.Getenv("ADDRESS"); envVarAddr != "" {
@@ -51,6 +54,9 @@ func (cfg *AgentConfig) parseFlags() error {
 	}
 	if envVarPoll := os.Getenv("POLL_INTERVAL"); envVarPoll != "" {
 		cfg.pollInterval, _ = strconv.ParseInt(envVarPoll, 10, 64)
+	}
+	if envVarKey := os.Getenv("KEY"); envVarKey != "" {
+		cfg.key = envVarKey
 	}
 	return cfg.check()
 }

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,7 +15,7 @@ import (
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string) error {
+func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string, signKey []byte) error {
 
 	fmt.Printf("+++Send metrics to server+++\n")
 	allMetrics, err := mStor.ListSlice(ctx)
@@ -22,7 +24,9 @@ func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 		if err != nil {
 			return err
 		}
+
 		var requestBody bytes.Buffer
+
 		gz := gzip.NewWriter(&requestBody)
 		gz.Write(jsonMetric)
 		gz.Close()
@@ -31,6 +35,16 @@ func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 		if err != nil {
 			fmt.Println(err)
 		}
+
+		if len(signKey) > 0 {
+			signBuf := requestBody.Bytes()
+			signBuf = append(signBuf, ',')
+			signBuf = append(signBuf, signKey...)
+
+			sign := sha256.Sum256(signBuf)
+			req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
+		}
+
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept-Encoding", "gzip")
 		req.Header.Set("Content-Encoding", "gzip")

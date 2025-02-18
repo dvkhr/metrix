@@ -12,13 +12,13 @@ import (
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-type send func(storage.MemStorage, context.Context, *http.Client, string) error
+type send func(storage.MemStorage, context.Context, *http.Client, string, []byte) error
 
 func Retry(sendMetrics send, retries int) send {
-	return func(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string) error {
+	return func(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string, signKey []byte) error {
 		for r := 0; ; r++ {
 			nextAttemptAfter := time.Duration(2*r+1) * time.Second
-			err := sendMetrics(mStor, ctx, cl, serverAddress)
+			err := sendMetrics(mStor, ctx, cl, serverAddress, signKey)
 			if err == nil || r >= retries {
 				return err
 			}
@@ -57,7 +57,7 @@ func main() {
 		if sendInterval.IsZero() ||
 			time.Since(sendInterval) >= time.Duration(cfg.reportInterval)*time.Second {
 			r := Retry(sender.SendMetrics, 3)
-			err = r(mStor, ctx, cl, cfg.serverAddress)
+			err = r(mStor, ctx, cl, cfg.serverAddress, []byte(cfg.key))
 			if err != nil {
 				fmt.Println(err)
 			}
