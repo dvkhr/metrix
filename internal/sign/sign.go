@@ -10,8 +10,8 @@ import (
 
 func SignCheck(h http.HandlerFunc, signKey []byte) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var tempBuf bytes.Buffer
 		if len(signKey) > 0 {
+			var tempBuf bytes.Buffer
 			if agentSignStr := r.Header.Get("HashSHA256"); len(agentSignStr) > 0 {
 
 				teeReader := io.TeeReader(r.Body, &tempBuf)
@@ -37,9 +37,8 @@ func SignCheck(h http.HandlerFunc, signKey []byte) http.HandlerFunc {
 					return
 				}
 			}
+			r.Body = io.NopCloser(&tempBuf)
 		}
-
-		r.Body = io.NopCloser(&tempBuf)
 		h.ServeHTTP(w, r)
 	})
 }
