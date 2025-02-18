@@ -3,8 +3,11 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"sync"
@@ -326,6 +329,18 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
+	}
+	if len(ms.Config.Key) > 0 {
+		signBuf, err := io.ReadAll(req.Body)
+		if err != nil {
+			res.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		signBuf = append(signBuf, ',')
+		signBuf = append(signBuf, ms.Config.Key...)
+
+		sign := sha256.Sum256(signBuf)
+		req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
 	}
 
 	res.Write(bufResp)
