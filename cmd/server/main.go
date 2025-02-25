@@ -11,6 +11,7 @@ import (
 	"github.com/dvkhr/metrix.git/internal/gzip"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logger"
+	"github.com/dvkhr/metrix.git/internal/sign"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -33,7 +34,7 @@ func main() {
 	r.Get("/value/{type}/{name}", logger.WithLogging(MetricServer.HandleGetMetric))
 	r.Get("/ping", logger.WithLogging(MetricServer.CheckDBConnect))
 	r.Post("/value/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.ExtractMetric)))
-	r.Post("/updates/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.UpdateBatch)))
+	r.Post("/updates/", logger.WithLogging(gzip.GzipMiddleware(sign.SignCheck(MetricServer.UpdateBatch, []byte(MetricServer.Config.Key)))))
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", logger.WithLogging(gzip.GzipMiddleware(MetricServer.UpdateMetric)))
 		r.Post("/*", logger.WithLogging(MetricServer.IncorrectMetricRq))
