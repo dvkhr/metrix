@@ -15,11 +15,11 @@ import (
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string, signKey []byte) error {
+func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client, serverAddress string, signKey []byte) error {
 
 	fmt.Printf("+++Send metrics to server+++\n")
 	allMetrics, err := mStor.ListSlice(ctx)
-	if err == nil {
+	if err == nil && len(allMetrics) > 0 {
 		jsonMetric, err := json.Marshal(allMetrics)
 		if err != nil {
 			return err
@@ -31,7 +31,7 @@ func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 		gz.Write(jsonMetric)
 		gz.Close()
 
-		req, err := http.NewRequest("POST", BuildAllMetricsURL(serverAddress), &requestBody)
+		req, err := http.NewRequest("POST", buildAllMetricsURL(serverAddress), &requestBody)
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -76,7 +76,7 @@ func SendMetrics(mStor storage.MemStorage, ctx context.Context, cl *http.Client,
 	return nil
 }
 
-func BuildAllMetricsURL(serverAddress string) string {
+func buildAllMetricsURL(serverAddress string) string {
 	serverURL := &url.URL{
 		Scheme: "http",
 		Host:   fmt.Sprint(serverAddress),

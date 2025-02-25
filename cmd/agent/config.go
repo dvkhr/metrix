@@ -14,6 +14,7 @@ type AgentConfig struct {
 	reportInterval int64
 	pollInterval   int64
 	key            string
+	rateLimit      int64
 }
 
 var (
@@ -42,6 +43,7 @@ func (cfg *AgentConfig) parseFlags() error {
 	flag.Int64Var(&cfg.reportInterval, "r", 10, "Frequency of sending metrics in seconds")
 	flag.Int64Var(&cfg.pollInterval, "p", 2, "Frequency of metric polling in seconds")
 	flag.StringVar(&cfg.key, "k", "", "Key")
+	flag.Int64Var(&cfg.rateLimit, "l", 5, "Limiting outgoing requests")
 
 	flag.Parse()
 
@@ -58,6 +60,10 @@ func (cfg *AgentConfig) parseFlags() error {
 	if envVarKey := os.Getenv("KEY"); envVarKey != "" {
 		cfg.key = envVarKey
 	}
+	if envVarLim := os.Getenv("RATE_LIMIT"); envVarLim != "" {
+		cfg.rateLimit, _ = strconv.ParseInt(envVarLim, 10, 64)
+	}
+
 	return cfg.check()
 }
 func newHTTPClient() *http.Client {
