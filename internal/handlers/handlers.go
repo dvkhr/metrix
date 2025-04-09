@@ -3,6 +3,8 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/dvkhr/metrix.git/internal/config"
+	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/dvkhr/metrix.git/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -165,9 +168,9 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 
 	res.Write(bufResp)
-	res.WriteHeader(http.StatusOK)
 
 }
 
@@ -210,9 +213,9 @@ func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Reques
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 
 	res.Write(bufResp)
-	res.WriteHeader(http.StatusOK)
 }
 
 func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Request) {
@@ -228,7 +231,6 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 		return
 	}
 	n := chi.URLParam(req, "name")
-	//mTemp := &metric.Metrics{}
 	mTemp, err := ms.MetricStorage.Get(ctx, n)
 	if err != nil {
 		http.Error(res, "Metric not found!", http.StatusNotFound)
@@ -237,9 +239,12 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 	switch mTemp.MType {
 	case service.GaugeMetric:
 		value := mTemp.Value
+		logging.Logg.Info("res", "%v", *value)
 		fmt.Fprintf(res, "%v", *value)
+
 	case service.CounterMetric:
 		value := mTemp.Delta
+		logging.Logg.Info("res", "%v", *value)
 		fmt.Fprintf(res, "%v", *value)
 	}
 }
@@ -327,8 +332,16 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	if len(ms.Config.Key) > 0 {
+		signBuf := bufResp
+		signBuf = append(signBuf, ',')
+		signBuf = append(signBuf, ms.Config.Key...)
+
+		sign := sha256.Sum256(signBuf)
+		req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
+	}
+	res.WriteHeader(http.StatusOK)
 
 	res.Write(bufResp)
-	res.WriteHeader(http.StatusOK)
 
 }

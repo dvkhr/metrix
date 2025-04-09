@@ -3,66 +3,57 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"os"
-	"time"
+	"os/signal"
 
+	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/sender"
 	"github.com/dvkhr/metrix.git/internal/service"
-	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-type send func(storage.MemStorage, context.Context, *http.Client, string) error
-
-func Retry(sendMetrics send, retries int) send {
-	return func(mStor storage.MemStorage, ctx context.Context, cl *http.Client, serverAddress string) error {
-		for r := 0; ; r++ {
-			nextAttemptAfter := time.Duration(2*r+1) * time.Second
-			err := sendMetrics(mStor, ctx, cl, serverAddress)
-			if err == nil || r >= retries {
-				return err
-			}
-			fmt.Printf("Attempt %d failed; retrying in %v\n", r+1, nextAttemptAfter)
-			select {
-			case <-time.After(nextAttemptAfter):
-			case <-ctx.Done():
-				return ctx.Err()
-			}
-		}
-	}
-}
-
 func main() {
+	logging.Logg = logging.NewLogger("debug", "text", "json", "both", "logs/2006-01-02.log")
+	if logging.Logg == nil {
+		fmt.Println("Failed to initialize logger")
+		os.Exit(1)
+	}
 	var cfg AgentConfig
-	ctx := context.TODO()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	err := cfg.parseFlags()
 
 	if err != nil {
-		fmt.Println(err)
+		logging.Logg.Error("Server configuration error: %v", err)
 		os.Exit(1)
 	}
-	var mStor storage.MemStorage
-	mStor.NewStorage()
 
 	cl := newHTTPClient()
 
-	var collectInterval, sendInterval time.Time
-	for {
-		if collectInterval.IsZero() ||
-			time.Since(collectInterval) >= time.Duration(cfg.pollInterval)*time.Second {
-			service.CollectMetrics(ctx, &mStor)
-			collectInterval = time.Now()
-		}
+	stopChan := make(chan bool)
+	defer close(stopChan)
 
-		if sendInterval.IsZero() ||
-			time.Since(sendInterval) >= time.Duration(cfg.reportInterval)*time.Second {
-			r := Retry(sender.SendMetrics, 3)
-			err = r(mStor, ctx, cl, cfg.serverAddress)
-			if err != nil {
-				fmt.Println(err)
-			}
-			sendInterval = time.Now()
-		}
-		time.Sleep(time.Duration(cfg.pollInterval) * time.Second)
+	payloadChan := make(chan service.Metrics)
+	defer close(payloadChan)
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt)
+
+	collectOSWorker := CollectWorker{wf: service.CollectMetricsOS, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
+	collectChWorker := CollectWorker{wf: service.CollectMetricsCh, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
+	sendMetricsWorker := SendWorker{wf: sender.SendMetrics, poll: cfg.reportInterval, ctx: ctx,
+		payloadChan: payloadChan, stopChan: stopChan, cl: cl, serverAddress: cfg.serverAddress, signKey: []byte(cfg.key)}
+
+	go collectOSWorker.StartCollecting()
+	go collectChWorker.StartCollecting()
+
+	for i := 0; i < int(cfg.rateLimit); i++ {
+		go sendMetricsWorker.Run()
 	}
+
+	<-signalChan
+	logging.Logg.Info("shutting down agent...")
+
+	stopChan <- true
+
+	logging.Logg.Info("agent shut down completed")
 }
