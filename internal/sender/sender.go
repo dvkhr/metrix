@@ -12,12 +12,14 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
 func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client, serverAddress string, signKey []byte) error {
 
-	fmt.Printf("+++Send metrics to server+++\n")
+	logging.Logg.Info("+++Send metrics to server+++\n")
+
 	allMetrics, err := mStor.ListSlice(ctx)
 	if err == nil && len(allMetrics) > 0 {
 		jsonMetric, err := json.Marshal(allMetrics)
@@ -56,7 +58,7 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 			case "gzip":
 				reader, err = gzip.NewReader(resp.Body)
 				if err != nil {
-					fmt.Println("FAIL create gzip reader: %w", err)
+					logging.Logg.Info("FAIL create gzip reader: %w", err)
 				}
 				defer reader.Close()
 			default:
@@ -64,7 +66,7 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 			}
 			body, err := io.ReadAll(reader)
 			if err != nil {
-				fmt.Println("FAIL reader response body: %w", err)
+				logging.Logg.Info("FAIL reader response body: %w", err)
 				return err
 			}
 			fmt.Println(string(body))

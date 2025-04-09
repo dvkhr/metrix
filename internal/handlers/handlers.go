@@ -6,13 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
 	"text/template"
 
 	"github.com/dvkhr/metrix.git/internal/config"
+	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/dvkhr/metrix.git/internal/storage"
 	"github.com/go-chi/chi/v5"
@@ -230,7 +230,6 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 		return
 	}
 	n := chi.URLParam(req, "name")
-	//mTemp := &metric.Metrics{}
 	mTemp, err := ms.MetricStorage.Get(ctx, n)
 	if err != nil {
 		http.Error(res, "Metric not found!", http.StatusNotFound)
@@ -239,10 +238,11 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 	switch mTemp.MType {
 	case service.GaugeMetric:
 		value := mTemp.Value
-		fmt.Fprintf(res, "%v", *value)
+		logging.Logg.Info("res", "%v", *value)
+
 	case service.CounterMetric:
 		value := mTemp.Delta
-		fmt.Fprintf(res, "%v", *value)
+		logging.Logg.Info("res", "%v", *value)
 	}
 }
 

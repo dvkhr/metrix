@@ -11,6 +11,7 @@ import (
 	"runtime"
 
 	//----
+	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/v3/mem"
 )
@@ -39,56 +40,6 @@ var ErrUnkonownMetric = errors.New("unknown metric")
 type MetricStorage interface {
 	Save(ctx context.Context, mt Metrics) error
 	List(ctx context.Context) (*map[string]Metrics, error)
-}
-
-func CollectMetrics(ctx context.Context, ms MetricStorage) {
-	var rtm runtime.MemStats
-	runtime.ReadMemStats(&rtm)
-	collectMetric := func(metricType MetricType, metricName string, metricValue any) {
-		var mt Metrics
-		switch metricType {
-		case GaugeMetric:
-			temp := metricValue.(GaugeMetricValue)
-			mt = Metrics{ID: metricName, MType: metricType, Value: &temp}
-		case CounterMetric:
-			temp := metricValue.(CounterMetricValue)
-			mt = Metrics{ID: metricName, MType: metricType, Delta: &temp}
-		}
-		err := ms.Save(ctx, mt)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "ERROR: collecting %s metric %s:%v\n", metricType, metricName, err)
-		}
-	}
-	collectMetric(GaugeMetric, "Alloc", GaugeMetricValue(rtm.Alloc))
-	collectMetric(GaugeMetric, "BuckHashSys", GaugeMetricValue(rtm.BuckHashSys))
-	collectMetric(GaugeMetric, "Frees", GaugeMetricValue(rtm.Frees))
-	collectMetric(GaugeMetric, "GCCPUFraction", GaugeMetricValue(rtm.GCCPUFraction))
-	collectMetric(GaugeMetric, "GCSys", GaugeMetricValue(rtm.GCSys))
-	collectMetric(GaugeMetric, "HeapAlloc", GaugeMetricValue(rtm.HeapAlloc))
-	collectMetric(GaugeMetric, "HeapIdle", GaugeMetricValue(rtm.HeapIdle))
-	collectMetric(GaugeMetric, "HeapInuse", GaugeMetricValue(rtm.HeapInuse))
-	collectMetric(GaugeMetric, "HeapObjects", GaugeMetricValue(rtm.HeapObjects))
-	collectMetric(GaugeMetric, "HeapReleased", GaugeMetricValue(rtm.HeapReleased))
-	collectMetric(GaugeMetric, "HeapSys", GaugeMetricValue(rtm.HeapSys))
-	collectMetric(GaugeMetric, "LastGC", GaugeMetricValue(rtm.LastGC))
-	collectMetric(GaugeMetric, "Lookups", GaugeMetricValue(rtm.Lookups))
-	collectMetric(GaugeMetric, "MCacheInuse", GaugeMetricValue(rtm.MCacheInuse))
-	collectMetric(GaugeMetric, "MCacheSys", GaugeMetricValue(rtm.MCacheSys))
-	collectMetric(GaugeMetric, "MSpanInuse", GaugeMetricValue(rtm.MSpanInuse))
-	collectMetric(GaugeMetric, "MSpanSys", GaugeMetricValue(rtm.MSpanSys))
-	collectMetric(GaugeMetric, "Mallocs", GaugeMetricValue(rtm.Mallocs))
-	collectMetric(GaugeMetric, "NextGC", GaugeMetricValue(rtm.NextGC))
-	collectMetric(GaugeMetric, "NumForcedGC", GaugeMetricValue(rtm.NumForcedGC))
-	collectMetric(GaugeMetric, "NumGC", GaugeMetricValue(rtm.NumGC))
-	collectMetric(GaugeMetric, "OtherSys", GaugeMetricValue(rtm.OtherSys))
-	collectMetric(GaugeMetric, "PauseTotalNs", GaugeMetricValue(rtm.PauseTotalNs))
-	collectMetric(GaugeMetric, "StackInuse", GaugeMetricValue(rtm.StackInuse))
-	collectMetric(GaugeMetric, "StackSys", GaugeMetricValue(rtm.StackSys))
-	collectMetric(GaugeMetric, "Sys", GaugeMetricValue(rtm.Sys))
-	collectMetric(GaugeMetric, "TotalAlloc", GaugeMetricValue(rtm.TotalAlloc))
-	collectMetric(GaugeMetric, "RandomValue", GaugeMetricValue(rand.Float64()))
-
-	collectMetric(CounterMetric, "PollCount", CounterMetricValue(1))
 }
 
 func DumpMetrics(ms MetricStorage, wr io.Writer) error {
@@ -124,7 +75,8 @@ func RestoreMetrics(ms MetricStorage, rd io.Reader) error {
 }
 
 func CollectMetricsOS(ctx context.Context, metrics chan Metrics) {
-	fmt.Println("Run CollectMetricsOS")
+	logging.Logg.Info("+++Run CollectMetricsOS+++\n")
+
 	collectMetric := func(metricType MetricType, metricName string, metricValue any) {
 		var mt Metrics
 		switch metricType {
@@ -140,7 +92,7 @@ func CollectMetricsOS(ctx context.Context, metrics chan Metrics) {
 
 	vMem, err := mem.VirtualMemory()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "collecting memory metrics: %v\n", err)
+		logging.Logg.Error("collecting memory metrics: %v\n", err)
 	}
 
 	collectMetric(GaugeMetric, "TotalMemory", GaugeMetricValue(vMem.Total))
