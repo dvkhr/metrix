@@ -15,6 +15,7 @@ type ConfigServ struct {
 	StoreInterval   time.Duration
 	DBDsn           string
 	Restore         bool
+	Key             string
 }
 
 var (
@@ -45,6 +46,7 @@ func (cfg *ConfigServ) ParseFlags() error {
 	// Next 2 parametrs are useless in current implementation, left here just not to break autotests
 	flag.Int64Var(&storInt, "i", 0, "Frequency of saving to disk in seconds")
 	flag.BoolVar(&cfg.Restore, "r", true, "loading saved values")
+	flag.StringVar(&cfg.Key, "k", "", "Key")
 	flag.Parse()
 
 	if envVarAddr := os.Getenv("ADDRESS"); envVarAddr != "" {
@@ -63,6 +65,9 @@ func (cfg *ConfigServ) ParseFlags() error {
 	}
 	if envReStor := os.Getenv("POLL_INTERVAL"); envReStor != "" {
 		cfg.Restore, _ = strconv.ParseBool(envReStor)
+	}
+	if envVarKey := os.Getenv("KEY"); envVarKey != "" {
+		cfg.Key = envVarKey
 	}
 	cfg.StoreInterval = time.Duration(storInt) * time.Second
 	return cfg.check()

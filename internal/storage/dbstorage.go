@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
+	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/jackc/pgx/v5/pgconn"
 )
@@ -106,7 +106,8 @@ func (ms *DBStorage) retry(f func() error, maxRetries int) error {
 		if err == nil || !isPgTransportError(err) {
 			return err
 		}
-		fmt.Printf("Postgres retry after error %v\n", err)
+		logging.Logg.Error("Postgres retry after error %v\n", err)
+
 		time.Sleep(time.Duration(2*i+1) * time.Second)
 	}
 	return err
