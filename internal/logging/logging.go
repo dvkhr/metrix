@@ -8,12 +8,19 @@ import (
 // responseWriterWrapper — это обертка для ResponseWriter, которая записывает HTTP-статус
 type responseWriterWrapper struct {
 	http.ResponseWriter
-	statusCode int
+	statusCode  int
+	wroteHeader bool
 }
 
 // WriteHeader перехватывает вызов WriteHeader для записи статуса
 func (rw *responseWriterWrapper) WriteHeader(statusCode int) {
+	if rw.wroteHeader {
+		return
+	}
+
+	rw.wroteHeader = true
 	rw.statusCode = statusCode
+
 	rw.ResponseWriter.WriteHeader(statusCode)
 }
 

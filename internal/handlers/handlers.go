@@ -167,9 +167,9 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 
 	res.Write(bufResp)
-	res.WriteHeader(http.StatusOK)
 
 }
 
@@ -212,9 +212,9 @@ func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Reques
 		res.WriteHeader(http.StatusNotFound)
 		return
 	}
+	res.WriteHeader(http.StatusOK)
 
 	res.Write(bufResp)
-	res.WriteHeader(http.StatusOK)
 }
 
 func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Request) {
@@ -337,8 +337,8 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 		sign := sha256.Sum256(signBuf)
 		req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
 	}
+	res.WriteHeader(http.StatusOK)
 
 	res.Write(bufResp)
-	res.WriteHeader(http.StatusOK)
 
 }

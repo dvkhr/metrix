@@ -126,34 +126,42 @@ func CollectMetricsCh(ctx context.Context, metrics chan Metrics) {
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
 
-	collectMetric(GaugeMetric, "Alloc", GaugeMetricValue(rtm.Alloc))
-	collectMetric(GaugeMetric, "BuckHashSys", GaugeMetricValue(rtm.BuckHashSys))
-	collectMetric(GaugeMetric, "Frees", GaugeMetricValue(rtm.Frees))
-	collectMetric(GaugeMetric, "GCCPUFraction", GaugeMetricValue(rtm.GCCPUFraction))
-	collectMetric(GaugeMetric, "GCSys", GaugeMetricValue(rtm.GCSys))
-	collectMetric(GaugeMetric, "HeapAlloc", GaugeMetricValue(rtm.HeapAlloc))
-	collectMetric(GaugeMetric, "HeapIdle", GaugeMetricValue(rtm.HeapIdle))
-	collectMetric(GaugeMetric, "HeapInuse", GaugeMetricValue(rtm.HeapInuse))
-	collectMetric(GaugeMetric, "HeapObjects", GaugeMetricValue(rtm.HeapObjects))
-	collectMetric(GaugeMetric, "HeapReleased", GaugeMetricValue(rtm.HeapReleased))
-	collectMetric(GaugeMetric, "HeapSys", GaugeMetricValue(rtm.HeapSys))
-	collectMetric(GaugeMetric, "LastGC", GaugeMetricValue(rtm.LastGC))
-	collectMetric(GaugeMetric, "Lookups", GaugeMetricValue(rtm.Lookups))
-	collectMetric(GaugeMetric, "MCacheInuse", GaugeMetricValue(rtm.MCacheInuse))
-	collectMetric(GaugeMetric, "MCacheSys", GaugeMetricValue(rtm.MCacheSys))
-	collectMetric(GaugeMetric, "MSpanInuse", GaugeMetricValue(rtm.MSpanInuse))
-	collectMetric(GaugeMetric, "MSpanSys", GaugeMetricValue(rtm.MSpanSys))
-	collectMetric(GaugeMetric, "Mallocs", GaugeMetricValue(rtm.Mallocs))
-	collectMetric(GaugeMetric, "NextGC", GaugeMetricValue(rtm.NextGC))
-	collectMetric(GaugeMetric, "NumForcedGC", GaugeMetricValue(rtm.NumForcedGC))
-	collectMetric(GaugeMetric, "NumGC", GaugeMetricValue(rtm.NumGC))
-	collectMetric(GaugeMetric, "OtherSys", GaugeMetricValue(rtm.OtherSys))
-	collectMetric(GaugeMetric, "PauseTotalNs", GaugeMetricValue(rtm.PauseTotalNs))
-	collectMetric(GaugeMetric, "StackInuse", GaugeMetricValue(rtm.StackInuse))
-	collectMetric(GaugeMetric, "StackSys", GaugeMetricValue(rtm.StackSys))
-	collectMetric(GaugeMetric, "Sys", GaugeMetricValue(rtm.Sys))
-	collectMetric(GaugeMetric, "TotalAlloc", GaugeMetricValue(rtm.TotalAlloc))
-	collectMetric(GaugeMetric, "RandomValue", GaugeMetricValue(rand.Float64()))
+	gaugeMetrics := []struct {
+		Name  string
+		Value GaugeMetricValue
+	}{
+		{"Alloc", GaugeMetricValue(rtm.Alloc)},
+		{"BuckHashSys", GaugeMetricValue(rtm.BuckHashSys)},
+		{"Frees", GaugeMetricValue(rtm.Frees)},
+		{"GCCPUFraction", GaugeMetricValue(rtm.GCCPUFraction)},
+		{"GCSys", GaugeMetricValue(rtm.GCSys)},
+		{"HeapAlloc", GaugeMetricValue(rtm.HeapAlloc)},
+		{"HeapIdle", GaugeMetricValue(rtm.HeapIdle)},
+		{"HeapInuse", GaugeMetricValue(rtm.HeapInuse)},
+		{"HeapObjects", GaugeMetricValue(rtm.HeapObjects)},
+		{"HeapReleased", GaugeMetricValue(rtm.HeapReleased)},
+		{"HeapSys", GaugeMetricValue(rtm.HeapSys)},
+		{"LastGC", GaugeMetricValue(rtm.LastGC)},
+		{"Lookups", GaugeMetricValue(rtm.Lookups)},
+		{"MCacheInuse", GaugeMetricValue(rtm.MCacheInuse)},
+		{"MCacheSys", GaugeMetricValue(rtm.MCacheSys)},
+		{"MSpanInuse", GaugeMetricValue(rtm.MSpanInuse)},
+		{"MSpanSys", GaugeMetricValue(rtm.MSpanSys)},
+		{"Mallocs", GaugeMetricValue(rtm.Mallocs)},
+		{"NextGC", GaugeMetricValue(rtm.NextGC)},
+		{"NumForcedGC", GaugeMetricValue(rtm.NumForcedGC)},
+		{"NumGC", GaugeMetricValue(rtm.NumGC)},
+		{"OtherSys", GaugeMetricValue(rtm.OtherSys)},
+		{"PauseTotalNs", GaugeMetricValue(rtm.PauseTotalNs)},
+		{"StackInuse", GaugeMetricValue(rtm.StackInuse)},
+		{"StackSys", GaugeMetricValue(rtm.StackSys)},
+		{"Sys", GaugeMetricValue(rtm.Sys)},
+		{"TotalAlloc", GaugeMetricValue(rtm.TotalAlloc)},
+		{"RandomValue", GaugeMetricValue(rand.Float64())},
+	}
+	for _, gm := range gaugeMetrics {
+		collectMetric(GaugeMetric, gm.Name, gm.Value)
+	}
 
 	collectMetric(CounterMetric, "PollCount", CounterMetricValue(1))
 }
