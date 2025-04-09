@@ -239,10 +239,12 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 	case service.GaugeMetric:
 		value := mTemp.Value
 		logging.Logg.Info("res", "%v", *value)
+		fmt.Fprintf(res, "%v", *value)
 
 	case service.CounterMetric:
 		value := mTemp.Delta
 		logging.Logg.Info("res", "%v", *value)
+		fmt.Fprintf(res, "%v", *value)
 	}
 }
 
