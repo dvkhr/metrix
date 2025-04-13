@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMemStorage_NewMemStorage(t *testing.T) {
+func TestMemNewStorage(t *testing.T) {
 	type fields struct {
 		data map[string]service.Metrics
 	}
@@ -39,7 +39,7 @@ func TestMemStorage_NewMemStorage(t *testing.T) {
 	}
 }
 
-func TestMemStorageSave(t *testing.T) {
+func TestMemSave(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestMemStorageSave(t *testing.T) {
 	})
 }
 
-func TestMemStorageGet(t *testing.T) {
+func TestMemGet(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
@@ -181,7 +181,7 @@ func TestMemStorageGet(t *testing.T) {
 	})
 }
 
-func TestMemStorageList(t *testing.T) {
+func TestMemList(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
@@ -231,7 +231,7 @@ func TestMemStorageList(t *testing.T) {
 	})
 }
 
-func TestMemStorageListSlice(t *testing.T) {
+func TestMemListSlice(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
@@ -296,7 +296,7 @@ func TestMemStorageListSlice(t *testing.T) {
 	})
 }
 
-func TestCheckStorage(t *testing.T) {
+func TestMemCheckStorage(t *testing.T) {
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
 		storage := &MemStorage{}
 
@@ -314,7 +314,7 @@ func TestCheckStorage(t *testing.T) {
 	})
 }
 
-func TestMemStorageSaveAll(t *testing.T) {
+func TestMemSaveAll(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
