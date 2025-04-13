@@ -194,19 +194,18 @@ func TestMemStorageList(t *testing.T) {
 
 	t.Run("Success: Empty storage", func(t *testing.T) {
 		storage := &MemStorage{}
-		_ = storage.NewStorage() // Инициализируем хранилище
+		_ = storage.NewStorage()
 
 		result, err := storage.List(ctx)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
-		assert.Empty(t, *result) // Проверяем, что карта пуста
+		assert.Empty(t, *result)
 	})
 
 	t.Run("Success: Non-empty storage", func(t *testing.T) {
 		storage := &MemStorage{}
-		_ = storage.NewStorage() // Инициализируем хранилище
+		_ = storage.NewStorage()
 
-		// Добавляем метрики в хранилище
 		gaugeValue := service.GaugeMetricValue(42.0)
 		counterDelta := service.CounterMetricValue(10)
 
@@ -221,15 +220,12 @@ func TestMemStorageList(t *testing.T) {
 			Delta: &counterDelta,
 		}
 
-		// Вызываем метод List
 		result, err := storage.List(ctx)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 
-		// Проверяем содержимое карты
 		assert.Equal(t, 2, len(*result))
 
-		// Разыменовываем указатели перед сравнением
 		assert.Equal(t, gaugeValue, *(*result)["test_gauge"].Value)
 		assert.Equal(t, counterDelta, *(*result)["test_counter"].Delta)
 	})
@@ -239,7 +235,7 @@ func TestMemStorageListSlice(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
-		storage := &MemStorage{} // data == nil
+		storage := &MemStorage{}
 		result, err := storage.ListSlice(ctx)
 		assert.Error(t, err)
 		assert.Equal(t, service.ErrUninitializedStorage, err)
@@ -302,7 +298,7 @@ func TestMemStorageListSlice(t *testing.T) {
 
 func TestCheckStorage(t *testing.T) {
 	t.Run("Error: Uninitialized storage", func(t *testing.T) {
-		storage := &MemStorage{} // data == nil
+		storage := &MemStorage{}
 
 		err := storage.CheckStorage()
 		assert.Error(t, err)
@@ -311,7 +307,7 @@ func TestCheckStorage(t *testing.T) {
 
 	t.Run("Success: Initialized storage", func(t *testing.T) {
 		storage := &MemStorage{}
-		_ = storage.NewStorage() // Инициализируем хранилище
+		_ = storage.NewStorage()
 
 		err := storage.CheckStorage()
 		assert.NoError(t, err)
