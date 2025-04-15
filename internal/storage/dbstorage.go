@@ -35,7 +35,7 @@ type DBStorage struct {
 }
 
 func (ms *DBStorage) NewStorage() error {
-	// Если db уже инициализирован, используем его
+
 	if ms.db == nil {
 		var err error
 		if ms.db, err = sql.Open("pgx", ms.DBDSN); err != nil {
@@ -50,7 +50,6 @@ func (ms *DBStorage) NewStorage() error {
 		return err
 	}
 
-	// Создание таблицы
 	createStmt := "create table if not exists metrix (id varchar(32) PRIMARY KEY, value jsonb not null)"
 	err = ms.retry(func() error {
 		_, err := ms.db.Exec(createStmt)
@@ -60,7 +59,6 @@ func (ms *DBStorage) NewStorage() error {
 		return err
 	}
 
-	// Подготовка операторов
 	saveGaugeQuery := "insert into metrix values($1::varchar, jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision)) on conflict(id) do update set value = jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision) where metrix.id = $1::varchar;"
 	err = ms.retry(func() error {
 		var err error
