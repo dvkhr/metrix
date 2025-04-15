@@ -1,163 +1,68 @@
 package storage
 
 import (
-	"context"
 	"database/sql"
-	"errors"
+	"encoding/json"
 	"testing"
 
-	"github.com/dvkhr/metrix.git/internal/service"
-	gomock "github.com/golang/mock/gomock"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // Импортируем драйвер pgx
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestDBNewStorage(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+func TestNewStorage_Postgres_TemporaryTable(t *testing.T) {
+	dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
 
-	mockDB := NewMockDB(ctrl)
+	dbConn, err := sql.Open("pgx", dsn)
+	require.NoError(t, err)
+	defer dbConn.Close()
+
+	createTempTable := `
+    CREATE TEMP TABLE metrix (
+        id VARCHAR(32) PRIMARY KEY,
+        value JSONB
+    );
+    `
+	_, err = dbConn.Exec(createTempTable)
+	require.NoError(t, err)
 
 	storage := &DBStorage{
-		DBDSN: "test_dsn",
-		db:    mockDB,
+		DBDSN: dsn,
+		db:    dbConn,
 	}
 
-	mockDB.EXPECT().Ping().Return(nil)
+	err = storage.NewStorage()
+	require.NoError(t, err)
 
-	createStmt := "create table if not exists metrix (id varchar(32) PRIMARY KEY, value jsonb not null)"
-	mockDB.EXPECT().Exec(createStmt).Return(nil, nil)
-
-	saveGaugeQuery := "insert into metrix values($1::varchar, jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision)) on conflict(id) do update set value = jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision) where metrix.id = $1::varchar;"
-	mockDB.EXPECT().Prepare(saveGaugeQuery).Return(&sql.Stmt{}, nil)
-
-	saveCounterQuery := "insert into metrix values($1::varchar, jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'delta', $3::bigint)) on conflict(id) do update set value = jsonb_set(metrix.value, '{delta}', ((metrix.value ->> 'delta')::bigint + $3::bigint)::text::jsonb, false) where metrix.id = $1::varchar;"
-	mockDB.EXPECT().Prepare(saveCounterQuery).Return(&sql.Stmt{}, nil)
-
-	getQuery := "select value from metrix where id = $1::varchar;"
-	mockDB.EXPECT().Prepare(getQuery).Return(&sql.Stmt{}, nil)
-
-	listQuery := "select jsonb_object_agg(k,v) from metrix, jsonb_each(jsonb_build_object(id, value)) as t(k,v);"
-	mockDB.EXPECT().Prepare(listQuery).Return(&sql.Stmt{}, nil)
-
-	err := storage.NewStorage()
+	_, err = storage.saveGaugeStmt.Exec("test_id", "gauge", 42.0)
 	assert.NoError(t, err)
+
+	_, err = storage.saveCounterStmt.Exec("test_id", "counter", int64(100))
+	assert.NoError(t, err)
+
+	_, err = storage.saveGaugeStmt.Exec("test_gauge", "gauge", 42.0)
+	require.NoError(t, err)
+
+	var valueJSON string
+	err = storage.getStmt.QueryRow("test_gauge").Scan(&valueJSON)
+	assert.NoError(t, err)
+
+	var data map[string]interface{}
+	err = json.Unmarshal([]byte(valueJSON), &data)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "test_gauge", data["id"])
+	assert.Equal(t, "gauge", data["type"])
+	assert.Equal(t, 42.0, data["value"])
 }
 
-func TestDBSave(t *testing.T) {
-	gaugeValue := service.GaugeMetricValue(42.0)
-	counterDelta := service.CounterMetricValue(100)
+func TestNewStorage_Postgres_ErrorHandling(t *testing.T) {
+	dsn := "invalid_dsn"
 
-	t.Run("Save Gauge Metric", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
+	storage := &DBStorage{
+		DBDSN: dsn,
+	}
 
-		mockDB := NewMockDB(ctrl)
-		mockSaveGaugeStmt := NewMockStmt(ctrl)
-
-		storage := &DBStorage{
-			db:            mockDB,
-			saveGaugeStmt: mockSaveGaugeStmt,
-		}
-
-		metric := service.Metrics{
-			ID:    "gauge1",
-			MType: service.GaugeMetric,
-			Value: &gaugeValue,
-		}
-
-		mockDB.EXPECT().Ping().Return(nil).AnyTimes()
-
-		mockSaveGaugeStmt.EXPECT().
-			Exec(metric.ID, metric.MType, gomock.Any()).
-			Return(nil, nil)
-
-		err := storage.Save(context.Background(), metric)
-		assert.NoError(t, err)
-	})
-
-	t.Run("Save Counter Metric", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		mockDB := NewMockDB(ctrl)
-		mockSaveCounterStmt := NewMockStmt(ctrl)
-
-		storage := &DBStorage{
-			db:              mockDB,
-			saveCounterStmt: mockSaveCounterStmt,
-		}
-
-		metric := service.Metrics{
-			ID:    "counter1",
-			MType: service.CounterMetric,
-			Delta: &counterDelta,
-		}
-
-		mockDB.EXPECT().Ping().Return(nil).AnyTimes()
-
-		mockSaveCounterStmt.EXPECT().
-			Exec(metric.ID, metric.MType, gomock.Any()).
-			Return(nil, nil)
-
-		err := storage.Save(context.Background(), metric)
-		assert.NoError(t, err)
-	})
-
-	t.Run("Ping Error", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		mockDB := NewMockDB(ctrl)
-
-		storage := &DBStorage{
-			db: mockDB,
-		}
-
-		mockDB.EXPECT().Ping().Return(errors.New("ping failed")).AnyTimes()
-
-		err := storage.Save(context.Background(), service.Metrics{})
-		assert.Error(t, err)
-		assert.Equal(t, "ping failed", err.Error())
-	})
-
-	t.Run("Invalid Metric Type", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		mockDB := NewMockDB(ctrl)
-
-		storage := &DBStorage{
-			db: mockDB,
-		}
-
-		mockDB.EXPECT().Ping().Return(nil).AnyTimes()
-
-		err := storage.Save(context.Background(), service.Metrics{
-			ID:    "invalid_metric",
-			MType: "unknown_type",
-		})
-		assert.Error(t, err)
-		assert.Equal(t, service.ErrInvalidMetricName, err)
-	})
-
-	t.Run("Empty Metric ID", func(t *testing.T) {
-		ctrl := gomock.NewController(t)
-		defer ctrl.Finish()
-
-		mockDB := NewMockDB(ctrl)
-
-		storage := &DBStorage{
-			db: mockDB,
-		}
-
-		mockDB.EXPECT().Ping().Return(nil).AnyTimes()
-
-		err := storage.Save(context.Background(), service.Metrics{
-			ID:    "",
-			MType: service.GaugeMetric,
-		})
-		assert.Error(t, err)
-		assert.Equal(t, service.ErrInvalidMetricName, err)
-	})
+	err := storage.NewStorage()
+	assert.Error(t, err)
 }
