@@ -31,6 +31,8 @@ type MetricStorage interface {
 	CheckStorage() error
 }
 
+//mockgen -source=internal/handlers/handlers.go -destination=internal/mocks/mock_storage.go -package=mocks
+
 type MetricsServer struct {
 	MetricStorage MetricStorage
 	Config        config.ConfigServ
@@ -70,10 +72,6 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 
 	ctx := context.TODO()
 
-	if req.Method != http.MethodPost {
-		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
 	n := req.PathValue("name")
 	if len(n) == 0 {
 		http.Error(res, "Incorrect name!", http.StatusNotFound)
@@ -102,10 +100,6 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 
 	ctx := context.TODO()
 
-	if req.Method != http.MethodPost {
-		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
 	n := req.PathValue("name")
 	if len(n) == 0 {
 		http.Error(res, "Incorrect name!", http.StatusNotFound)
