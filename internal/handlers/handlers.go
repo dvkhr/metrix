@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -298,26 +299,22 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 	var allMtrx *map[string]service.Metrics
 	var mTemp []service.Metrics
 
-	var bufJSON bytes.Buffer
-	_, err := bufJSON.ReadFrom(req.Body)
+	if err := ReadAndUnmarshal(req, &mTemp); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			res.WriteHeader(http.StatusRequestEntityTooLarge)
+		} else {
+			res.WriteHeader(http.StatusBadRequest)
+		}
+		return
+	}
+	err := ms.MetricStorage.SaveAll(ctx, &mTemp)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	defer req.Body.Close()
-
-	if bufJSON.Len() > 0 {
-		if err := json.Unmarshal(bufJSON.Bytes(), &mTemp); err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if err := ms.MetricStorage.SaveAll(ctx, &mTemp); err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-	}
-	if allMtrx, err = ms.MetricStorage.List(ctx); err != nil {
+	allMtrx, err = ms.MetricStorage.List(ctx)
+	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -332,7 +329,7 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 		signBuf = append(signBuf, ms.Config.Key...)
 
 		sign := sha256.Sum256(signBuf)
-		req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
+		res.Header().Set("HashSHA256", hex.EncodeToString(sign[:]))
 	}
 	res.WriteHeader(http.StatusOK)
 

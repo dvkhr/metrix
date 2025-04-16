@@ -1,11 +1,14 @@
 package handlers
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/dvkhr/metrix.git/internal/config"
 	"github.com/dvkhr/metrix.git/internal/mocks"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -185,4 +188,214 @@ func TestHandlePutCounterMetric(t *testing.T) {
 		body := res.Body.String()
 		assert.Contains(t, body, "Incorrect value!")
 	})
+}
+func TestUpdateBatch(t *testing.T) {
+	t.Run("Successful POST Request", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockStorage := mocks.NewMockMetricStorage(ctrl)
+
+		server := &MetricsServer{
+			MetricStorage: mockStorage,
+			Config:        config.ConfigServ{Key: "test_key"},
+		}
+
+		counterValue := service.CounterMetricValue(100)
+		gaugeValue := service.GaugeMetricValue(42)
+
+		metrics := []service.Metrics{
+			{ID: "metric_1", MType: service.GaugeMetric, Value: &gaugeValue},
+			{ID: "metric_2", MType: service.CounterMetric, Delta: &counterValue},
+		}
+
+		mockStorage.EXPECT().
+			SaveAll(gomock.Any(), gomock.Any()).
+			Return(nil).
+			Times(1)
+
+		metricsMap := map[string]service.Metrics{
+			"metric_1": {ID: "metric_1", MType: service.GaugeMetric, Value: &gaugeValue},
+			"metric_2": {ID: "metric_2", MType: service.CounterMetric, Delta: &counterValue},
+		}
+
+		mockStorage.EXPECT().
+			List(gomock.Any()).
+			Return(&metricsMap, nil).
+			Times(1)
+
+		jsonData, _ := json.Marshal(metrics)
+		req := httptest.NewRequest(http.MethodPost, "/update/batch", bytes.NewReader(jsonData))
+		res := httptest.NewRecorder()
+
+		server.UpdateBatch(res, req)
+
+		assert.Equal(t, http.StatusOK, res.Code)
+
+		var response map[string]service.Metrics
+		err := json.Unmarshal(res.Body.Bytes(), &response)
+		assert.NoError(t, err)
+		assert.Contains(t, response, "metric_1")
+		assert.Contains(t, response, "metric_2")
+	})
+
+	t.Run("Unsupported HTTP Method", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockStorage := mocks.NewMockMetricStorage(ctrl)
+
+		server := &MetricsServer{
+			MetricStorage: mockStorage,
+			Config:        config.ConfigServ{Key: "test_key"},
+		}
+
+		req := httptest.NewRequest(http.MethodGet, "/update/batch", nil)
+		res := httptest.NewRecorder()
+
+		server.UpdateBatch(res, req)
+
+		assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
+
+		body := res.Body.String()
+		assert.Contains(t, body, "Only POST requests are allowed!")
+	})
+
+	t.Run("Invalid JSON Body", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockStorage := mocks.NewMockMetricStorage(ctrl)
+
+		server := &MetricsServer{
+			MetricStorage: mockStorage,
+			Config:        config.ConfigServ{Key: "test_key"},
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/update/batch", bytes.NewReader([]byte("invalid_json")))
+		res := httptest.NewRecorder()
+
+		server.UpdateBatch(res, req)
+
+		assert.Equal(t, http.StatusBadRequest, res.Code)
+	})
+
+	t.Run("SaveAll Error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockStorage := mocks.NewMockMetricStorage(ctrl)
+
+		server := &MetricsServer{
+			MetricStorage: mockStorage,
+			Config:        config.ConfigServ{Key: "test_key"},
+		}
+
+		gaugeValue := service.GaugeMetricValue(42)
+
+		metrics := []service.Metrics{
+			{ID: "metric_1", MType: service.GaugeMetric, Value: &gaugeValue},
+		}
+
+		mockStorage.EXPECT().
+			SaveAll(gomock.Any(), gomock.Any()).
+			Return(fmt.Errorf("storage error")).
+			Times(1)
+
+		jsonData, _ := json.Marshal(metrics)
+		req := httptest.NewRequest(http.MethodPost, "/update/batch", bytes.NewReader(jsonData))
+		res := httptest.NewRecorder()
+
+		server.UpdateBatch(res, req)
+
+		assert.Equal(t, http.StatusBadRequest, res.Code)
+	})
+
+	t.Run("List Error", func(t *testing.T) {
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		mockStorage := mocks.NewMockMetricStorage(ctrl)
+
+		server := &MetricsServer{
+			MetricStorage: mockStorage,
+			Config:        config.ConfigServ{Key: "test_key"},
+		}
+
+		gaugeValue := service.GaugeMetricValue(42)
+
+		metrics := []service.Metrics{
+			{ID: "metric_1", MType: service.GaugeMetric, Value: &gaugeValue},
+		}
+
+		mockStorage.EXPECT().
+			SaveAll(gomock.Any(), gomock.Any()).
+			Return(nil).
+			Times(1)
+
+		mockStorage.EXPECT().
+			List(gomock.Any()).
+			Return(nil, fmt.Errorf("list error")).
+			Times(1)
+
+		jsonData, _ := json.Marshal(metrics)
+		req := httptest.NewRequest(http.MethodPost, "/update/batch", bytes.NewReader(jsonData))
+		res := httptest.NewRecorder()
+
+		server.UpdateBatch(res, req)
+
+		assert.Equal(t, http.StatusBadRequest, res.Code)
+	})
+}
+
+// go test -bench=. -memprofile=mem.pprof
+// go tool pprof -http=":9090" handlers.test mem.pprof
+
+func BenchmarkUpdateBatch(b *testing.B) {
+	ctrl := gomock.NewController(nil)
+	defer ctrl.Finish()
+
+	mockStorage := mocks.NewMockMetricStorage(ctrl)
+
+	server := &MetricsServer{
+		MetricStorage: mockStorage,
+		Config:        config.ConfigServ{Key: "test_key"}, // Ключ для подписи
+	}
+
+	counterValue := service.CounterMetricValue(100)
+	gaugeValue := service.GaugeMetricValue(42.0)
+	metrics := []service.Metrics{
+		{ID: "metric_1", MType: service.GaugeMetric, Value: &gaugeValue},
+		{ID: "metric_2", MType: service.CounterMetric, Delta: &counterValue},
+	}
+
+	mockStorage.EXPECT().
+		SaveAll(gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
+
+	mockStorage.EXPECT().
+		List(gomock.Any()).
+		Return(&map[string]service.Metrics{
+			"metric_1": {ID: "metric_1", MType: service.GaugeMetric, Value: &gaugeValue},
+			"metric_2": {ID: "metric_2", MType: service.CounterMetric, Delta: &counterValue},
+		}, nil).
+		AnyTimes()
+
+	jsonData, err := json.Marshal(metrics)
+	if err != nil {
+		b.Fatalf("Failed to marshal metrics: %v", err)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/update/batch", bytes.NewReader(jsonData))
+		res := httptest.NewRecorder()
+
+		server.UpdateBatch(res, req)
+
+		if res.Code != http.StatusOK {
+			b.Fatalf("Unexpected status code: %d", res.Code)
+		}
+	}
 }
