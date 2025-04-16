@@ -9,14 +9,20 @@ import (
 	"time"
 
 	"github.com/dvkhr/metrix.git/internal/config"
-	"github.com/dvkhr/metrix.git/internal/gzip"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logging"
-	"github.com/dvkhr/metrix.git/internal/sign"
-	"github.com/go-chi/chi/v5"
+	"github.com/dvkhr/metrix.git/internal/routes"
+
+	_ "net/http/pprof" // Импортируем pprof
 )
 
 func main() {
+
+	go func() {
+		fmt.Println("Starting pprof server on :9090")
+		fmt.Println(http.ListenAndServe("localhost:9090", nil))
+	}()
+
 	logging.Logg = logging.NewLogger("debug", "text", "json", "both", "logs/2006-01-02.log")
 	if logging.Logg == nil {
 		fmt.Println("Failed to initialize logger")
@@ -36,26 +42,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	r := chi.NewRouter()
-	r.Use(logging.LoggingMiddleware(logging.Logg))
-
-	r.Get("/", gzip.GzipMiddleware(MetricServer.HandleGetAllMetrics))
-	r.Get("/value/{type}/{name}", MetricServer.HandleGetMetric)
-	r.Get("/ping", MetricServer.CheckDBConnect)
-	r.Post("/value/", gzip.GzipMiddleware(MetricServer.ExtractMetric))
-	r.Post("/updates/", gzip.GzipMiddleware(sign.SignCheck(MetricServer.UpdateBatch, []byte(MetricServer.Config.Key))))
-	r.Route("/update", func(r chi.Router) {
-		r.Post("/", gzip.GzipMiddleware(MetricServer.UpdateMetric))
-		r.Post("/*", MetricServer.IncorrectMetricRq)
-		r.Route("/gauge", func(r chi.Router) {
-			r.Post("/", MetricServer.NotfoundMetricRq)
-			r.Post("/{name}/{value}", gzip.GzipMiddleware(MetricServer.HandlePutGaugeMetric))
-		})
-		r.Route("/counter", func(r chi.Router) {
-			r.Post("/", MetricServer.NotfoundMetricRq)
-			r.Post("/{name}/{value}", gzip.GzipMiddleware(MetricServer.HandlePutCounterMetric))
-		})
-	})
+	r := routes.SetupRoutes(cfg, MetricServer)
 
 	server := &http.Server{Addr: cfg.Address,
 		Handler:      r,

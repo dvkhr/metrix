@@ -133,7 +133,7 @@ func (ms *FileStorage) Get(ctx context.Context, metricName string) (*service.Met
 	if m, ok := (*mtrx)[metricName]; ok {
 		return &m, nil
 	}
-	return nil, service.ErrUnkonownMetric
+	return nil, service.ErrUnknownMetric
 }
 
 func (ms *FileStorage) List(ctx context.Context) (*map[string]service.Metrics, error) {
