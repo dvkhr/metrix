@@ -38,8 +38,6 @@ func init() {
 		os.Exit(1)
 	}
 
-	logging.Logg.Debug("DSN", cfg.DBDsn)
-
 	var err error
 	MetricServer, err = handlers.NewMetricsServer(cfg)
 	if err != nil {

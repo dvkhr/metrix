@@ -1,15 +1,21 @@
 package storage
 
 import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
 	"testing"
 
+	"github.com/dvkhr/metrix.git/internal/service"
 	_ "github.com/jackc/pgx/v5/stdlib" // Импортируем драйвер pgx
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-/*func TestNewStorage_Postgres_TemporaryTable(t *testing.T) {
-	dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
-
+func TestNewStorage_Postgres_TemporaryTable(t *testing.T) {
+	// dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	dsn := "host=localhost port=5432 user=postgres password=postgres dbname=praktikum sslmode=disable"
 	dbConn, err := sql.Open("pgx", dsn)
 	require.NoError(t, err)
 	defer dbConn.Close()
@@ -51,7 +57,7 @@ import (
 	assert.Equal(t, "test_gauge", data["id"])
 	assert.Equal(t, "gauge", data["type"])
 	assert.Equal(t, 42.0, data["value"])
-}*/
+}
 
 func TestNewStorage_Postgres_ErrorHandling(t *testing.T) {
 	dsn := "invalid_dsn"
@@ -64,9 +70,10 @@ func TestNewStorage_Postgres_ErrorHandling(t *testing.T) {
 	assert.Error(t, err)
 }
 
-/*func BenchmarkSave(b *testing.B) {
+func BenchmarkSave(b *testing.B) {
 
-	dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	//	dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	dsn := "host=localhost port=5432 user=postgres password=postgres dbname=praktikum sslmode=disable"
 
 	storage := &DBStorage{
 		DBDSN: dsn,
@@ -93,11 +100,12 @@ func TestNewStorage_Postgres_ErrorHandling(t *testing.T) {
 		}
 	}
 
-}*/
+}
 
-/*func BenchmarkSaveAll(b *testing.B) {
+func BenchmarkSaveAll(b *testing.B) {
 
-	dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	//dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	dsn := "host=localhost port=5432 user=postgres password=postgres dbname=praktikum sslmode=disable"
 
 	storage := &DBStorage{
 		DBDSN: dsn,
@@ -129,4 +137,3 @@ func TestNewStorage_Postgres_ErrorHandling(t *testing.T) {
 		}
 	}
 }
-*/
