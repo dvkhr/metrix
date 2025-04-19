@@ -3,6 +3,8 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
 func ReadAndUnmarshal(req *http.Request, v interface{}) error {
@@ -17,4 +19,12 @@ func ReadAndUnmarshal(req *http.Request, v interface{}) error {
 	defer req.Body.Close()
 
 	return nil
+}
+
+func CheckImplementations() {
+	var (
+		_ MetricStorage = (*storage.DBStorage)(nil)
+		_ MetricStorage = (*storage.FileStorage)(nil)
+		_ MetricStorage = (*storage.MemStorage)(nil)
+	)
 }
