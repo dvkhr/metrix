@@ -14,7 +14,7 @@ import (
 )
 
 func TestNewStorage_Postgres_TemporaryTable(t *testing.T) {
-	// dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	t.Skip("Skipping this test for CI")
 	dsn := "host=localhost port=5432 user=postgres password=postgres dbname=praktikum sslmode=disable"
 	dbConn, err := sql.Open("pgx", dsn)
 	require.NoError(t, err)
@@ -72,7 +72,7 @@ func TestNewStorage_Postgres_ErrorHandling(t *testing.T) {
 
 func BenchmarkSave(b *testing.B) {
 
-	//	dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	b.Skip("Skipping this test for CI")
 	dsn := "host=localhost port=5432 user=postgres password=postgres dbname=praktikum sslmode=disable"
 
 	storage := &DBStorage{
@@ -104,7 +104,7 @@ func BenchmarkSave(b *testing.B) {
 
 func BenchmarkSaveAll(b *testing.B) {
 
-	//dsn := "host=localhost port=5432 user=postgres password=12345 dbname=testdb sslmode=disable"
+	b.Skip("Skipping this test for CI")
 	dsn := "host=localhost port=5432 user=postgres password=postgres dbname=praktikum sslmode=disable"
 
 	storage := &DBStorage{
