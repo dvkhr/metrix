@@ -46,7 +46,7 @@ func (ms *MemStorage) Get(ctx context.Context, metricName string) (*service.Metr
 	if m, ok := ms.data[metricName]; ok {
 		return &m, nil
 	}
-	return nil, service.ErrUnkonownMetric
+	return nil, service.ErrUnknownMetric
 }
 
 func (ms *MemStorage) List(ctx context.Context) (*map[string]service.Metrics, error) {

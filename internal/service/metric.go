@@ -35,7 +35,7 @@ type Metrics struct {
 
 var ErrUninitializedStorage = errors.New("storage is not initialized")
 var ErrInvalidMetricName = errors.New("invalid metric name")
-var ErrUnkonownMetric = errors.New("unknown metric")
+var ErrUnknownMetric = errors.New("unknown metric")
 
 type MetricStorage interface {
 	Save(ctx context.Context, mt Metrics) error
