@@ -26,7 +26,7 @@ func init() {
 }
 
 // ExampleHandlePutGaugeMetric демонстрирует работу с эндпоинтом /update/gauge/{name}/{value}.
-func ExampleHandlePutGaugeMetric() {
+func ExampleMetricsServer_HandlePutGaugeMetric() {
 
 	cfg := config.ConfigServ{
 		Address: ":8080",
@@ -65,7 +65,7 @@ func ExampleHandlePutGaugeMetric() {
 }
 
 // ExampleHandlePutCounterMetric демонстрирует работу с эндпоинтом /update/counter/{name}/{value}.
-func ExampleHandlePutCounterMetric() {
+func ExampleMetricsServer_HandlePutCounterMetric() {
 	cfg := config.ConfigServ{
 		Address: ":8080",
 	}
@@ -102,7 +102,7 @@ func ExampleHandlePutCounterMetric() {
 }
 
 // ExampleUpdateMetric демонстрирует работу с эндпоинтом /update/.
-func ExampleUpdateMetric() {
+func ExampleMetricsServer_UpdateMetric() {
 	cfg := config.ConfigServ{
 		Address: ":8080",
 	}
@@ -152,7 +152,7 @@ func ExampleUpdateMetric() {
 }
 
 // ExampleExtractMetric демонстрирует работу с эндпоинтом /value/.
-func ExampleExtractMetric() {
+func ExampleMetricsServer_ExtractMetric() {
 	cfg := config.ConfigServ{
 		Address: ":8080",
 	}
