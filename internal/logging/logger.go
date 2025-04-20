@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -20,6 +21,12 @@ var Logg *Logger
 func NewLogger(logLevel, consoleFormat, fileFormat, destination, filePattern string) *Logger {
 	// Определяем уровень логирования
 	level := getLogLevel(logLevel)
+
+	if level == slog.Level(-999) {
+		return &Logger{
+			logger: slog.New(slog.NewJSONHandler(io.Discard, nil)),
+		}
+	}
 
 	// Создаем обработчики для терминала и файла
 	var handlers []slog.Handler
@@ -91,6 +98,9 @@ func getLogLevel(level string) slog.Level {
 		return slog.LevelWarn
 	case "error":
 		return slog.LevelError
+	case "none":
+		return slog.Level(-999)
+
 	default:
 		// По умолчанию используем LevelInfo
 		return slog.LevelInfo

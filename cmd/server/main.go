@@ -25,7 +25,7 @@ var (
 func init() {
 	handlers.CheckImplementations()
 
-	logging.Logg = logging.NewLogger("debug", "text", "json", "both", "logs/2006-01-02.log")
+	logging.Logg = logging.NewLogger("none", "text", "json", "both", "logs/2006-01-02.log")
 	if logging.Logg == nil {
 		fmt.Println("Failed to initialize logger")
 		os.Exit(1)
