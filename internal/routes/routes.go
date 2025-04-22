@@ -10,8 +10,8 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// MetricServerInterface определяет методы, которые должны быть реализованы сервером метрик.
-type MetricServerInterface interface {
+// MetricServer определяет методы, которые должны быть реализованы сервером метрик.
+type MetricServer interface {
 	HandleGetAllMetrics(w http.ResponseWriter, r *http.Request)
 	HandleGetMetric(w http.ResponseWriter, r *http.Request)
 	CheckDBConnect(w http.ResponseWriter, r *http.Request)
@@ -25,9 +25,6 @@ type MetricServerInterface interface {
 }
 
 // SetupRoutes настраивает маршруты HTTP-сервера для обработки запросов метрик.
-//
-// Функция использует библиотеку chi для создания маршрутизатора и определяет
-// набор endpoints для работы с метриками (получение, обновление, проверка подключения и т.д.).
 //
 // Параметры:
 // - cfg: Конфигурация сервера, содержащая параметры для настройки маршрутов.
@@ -51,7 +48,7 @@ type MetricServerInterface interface {
 //
 // Возвращаемое значение:
 // - *chi.Mux: Настроенный маршрутизатор chi с определенными маршрутами.
-func SetupRoutes(cfg config.ConfigServ, metricServer MetricServerInterface) *chi.Mux {
+func SetupRoutes(cfg config.ConfigServ, metricServer MetricServer) *chi.Mux {
 	r := chi.NewRouter()
 
 	// Middleware
