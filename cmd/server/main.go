@@ -13,6 +13,7 @@ import (
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/routes"
+	"github.com/go-chi/chi/v5"
 
 	_ "net/http/pprof" // Импортируем pprof
 )
@@ -54,7 +55,8 @@ func init() {
 		os.Exit(1)
 	}
 
-	r := routes.SetupRoutes(cfg, MetricServer)
+	r := chi.NewRouter()
+	r = routes.SetupRoutes(r, logging.Logg, cfg, MetricServer)
 
 	server = &http.Server{
 		Addr:         cfg.Address,

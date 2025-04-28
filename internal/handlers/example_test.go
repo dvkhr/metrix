@@ -13,6 +13,7 @@ import (
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/routes"
 	"github.com/dvkhr/metrix.git/internal/service"
+	"github.com/go-chi/chi/v5"
 )
 
 // ExampleHandlePutGaugeMetric демонстрирует работу с эндпоинтом /update/gauge/{name}/{value}.
@@ -32,7 +33,8 @@ func ExampleMetricsServer_HandlePutGaugeMetric() {
 		panic("Failed to initialize MetricsServer: " + err.Error())
 	}
 
-	r := routes.SetupRoutes(cfg, metricServer)
+	r := chi.NewRouter()
+	r = routes.SetupRoutes(r, logging.Logg, cfg, metricServer)
 
 	testServer := httptest.NewServer(r)
 	defer testServer.Close()
@@ -69,7 +71,8 @@ func ExampleMetricsServer_HandlePutCounterMetric() {
 	if err != nil {
 		panic("Failed to initialize MetricsServer: " + err.Error())
 	}
-	r := routes.SetupRoutes(cfg, metricServer)
+	r := chi.NewRouter()
+	r = routes.SetupRoutes(r, logging.Logg, cfg, metricServer)
 
 	testServer := httptest.NewServer(r)
 	defer testServer.Close()
@@ -107,7 +110,8 @@ func ExampleMetricsServer_UpdateMetric() {
 		panic("Failed to initialize MetricsServer: " + err.Error())
 	}
 
-	r := routes.SetupRoutes(cfg, metricServer)
+	r := chi.NewRouter()
+	r = routes.SetupRoutes(r, logging.Logg, cfg, metricServer)
 
 	testServer := httptest.NewServer(r)
 	defer testServer.Close()
@@ -157,7 +161,8 @@ func ExampleMetricsServer_ExtractMetric() {
 		panic("Failed to initialize MetricsServer: " + err.Error())
 	}
 
-	r := routes.SetupRoutes(cfg, metricServer)
+	r := chi.NewRouter()
+	r = routes.SetupRoutes(r, logging.Logg, cfg, metricServer)
 
 	testServer := httptest.NewServer(r)
 	defer testServer.Close()

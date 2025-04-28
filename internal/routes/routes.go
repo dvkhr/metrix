@@ -27,6 +27,8 @@ type MetricServer interface {
 // SetupRoutes настраивает маршруты HTTP-сервера для обработки запросов метрик.
 //
 // Параметры:
+// - r: маршрутизатор chi
+// - logger: логгер
 // - cfg: Конфигурация сервера, содержащая параметры для настройки маршрутов.
 // - metricServer: Экземпляр MetricsServer, который обрабатывает логику работы с метриками.
 //
@@ -48,8 +50,7 @@ type MetricServer interface {
 //
 // Возвращаемое значение:
 // - *chi.Mux: Настроенный маршрутизатор chi с определенными маршрутами.
-func SetupRoutes(cfg config.ConfigServ, metricServer MetricServer) *chi.Mux {
-	r := chi.NewRouter()
+func SetupRoutes(r *chi.Mux, logger *logging.Logger, cfg config.ConfigServ, metricServer MetricServer) *chi.Mux {
 
 	// Middleware
 	r.Use(logging.LoggingMiddleware(logging.Logg))
