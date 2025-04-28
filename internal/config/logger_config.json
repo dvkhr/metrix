@@ -1,0 +1,7 @@
+{
+    "log_level": "debug",
+    "console_format": "text",
+    "file_format": "json",
+    "destination": "console",
+    "file_pattern": "logs/2006-01-02.log"
+  }

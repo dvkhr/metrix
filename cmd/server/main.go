@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"time"
 
 	"github.com/dvkhr/metrix.git/internal/config"
@@ -25,20 +26,28 @@ var (
 func init() {
 	handlers.CheckImplementations()
 
-	logging.Logg = logging.NewLogger("none", "text", "json", "both", "logs/2006-01-02.log")
-	if logging.Logg == nil {
-		fmt.Println("Failed to initialize logger")
+	var err error
+
+	// Установка рабочей директории в корень проекта
+	exeDir := filepath.Dir(os.Args[0])             // Директория исполняемого файла
+	projectRoot := filepath.Join(exeDir, "../../") // Поднимаемся на два уровня выше
+	if err := os.Chdir(projectRoot); err != nil {
+		fmt.Printf("Failed to change working directory to %s: %v", projectRoot, err)
 		os.Exit(1)
 	}
-
+	// Инициализация глобального логгера
+	if err = logging.InitLogger("internal/config/logger_config.json"); err != nil {
+		// Логируем ошибку и завершаем программу с кодом ошибки
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1) // Завершаем программу с кодом ошибки
+	}
 	go startPProf()
 
-	if err := cfg.ParseFlags(); err != nil {
+	if err = cfg.ParseFlags(); err != nil {
 		logging.Logg.Error("Failed to parse configuration: %v", err)
 		os.Exit(1)
 	}
 
-	var err error
 	MetricServer, err = handlers.NewMetricsServer(cfg)
 	if err != nil {
 		logging.Logg.Error("Unable to initialize storage: %v", err)

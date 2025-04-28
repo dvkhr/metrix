@@ -15,18 +15,13 @@ import (
 	"github.com/dvkhr/metrix.git/internal/service"
 )
 
-func init() {
-	// Инициализация логгера
-
-	logging.Logg = logging.NewLogger("none", "text", "json", "concole", "logs/2006-01-02.log")
-	if logging.Logg == nil {
-		fmt.Println("Failed to initialize logger")
-		//os.Exit(1)
-	}
-}
-
 // ExampleHandlePutGaugeMetric демонстрирует работу с эндпоинтом /update/gauge/{name}/{value}.
 func ExampleMetricsServer_HandlePutGaugeMetric() {
+
+	if err := logging.InitTestLogger(); err != nil {
+		fmt.Printf("Failed to initialize test logger: %v\n", err)
+		return
+	}
 
 	cfg := config.ConfigServ{
 		Address: ":8080",

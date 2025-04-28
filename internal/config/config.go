@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"os"
@@ -71,4 +72,28 @@ func (cfg *ConfigServ) ParseFlags() error {
 	}
 	cfg.StoreInterval = time.Duration(storInt) * time.Second
 	return cfg.check()
+}
+
+type LoggerConfig struct {
+	LogLevel      string `json:"log_level"`
+	ConsoleFormat string `json:"console_format"`
+	FileFormat    string `json:"file_format"`
+	Destination   string `json:"destination"`
+	FilePattern   string `json:"file_pattern"`
+}
+
+// LoadLoggerConfig загружает конфигурацию логгера из JSON-файла.
+func LoadLoggerConfig(filePath string) (*LoggerConfig, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var cfg LoggerConfig
+	if err := json.NewDecoder(file).Decode(&cfg); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
 }

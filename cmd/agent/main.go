@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/sender"
@@ -12,11 +13,20 @@ import (
 )
 
 func main() {
-	logging.Logg = logging.NewLogger("debug", "text", "json", "both", "logs/2006-01-02.log")
-	if logging.Logg == nil {
-		fmt.Println("Failed to initialize logger")
+	// Установка рабочей директории в корень проекта
+	exeDir := filepath.Dir(os.Args[0])             // Директория исполняемого файла
+	projectRoot := filepath.Join(exeDir, "../../") // Поднимаемся на два уровня выше
+	if err := os.Chdir(projectRoot); err != nil {
+		fmt.Printf("Failed to change working directory to %s: %v", projectRoot, err)
 		os.Exit(1)
 	}
+
+	// Инициализация глобального логгера
+	if err := logging.InitLogger("internal/config/logger_config.json"); err != nil {
+		fmt.Printf("Failed to initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+
 	var cfg AgentConfig
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
