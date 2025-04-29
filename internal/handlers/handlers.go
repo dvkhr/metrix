@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -20,6 +21,21 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
+// MetricStorage представляет интерфейс для работы с хранилищем метрик.
+//
+// Он определяет набор методов для сохранения, получения и управления метриками.
+// Реализации этого интерфейса могут использовать различные типы хранилищ,
+// такие как база данных, файловое хранилище или оперативная память.
+//
+// Методы:
+// - Save: Сохраняет одну метрику в хранилище.
+// - SaveAll: Сохраняет массив метрик в хранилище.
+// - Get: Получает метрику по её имени.
+// - List: Возвращает все метрики в виде мапы, где ключ — имя метрики.
+// - ListSlice: Возвращает все метрики в виде слайса.
+// - NewStorage: Инициализирует хранилище.
+// - FreeStorage: Освобождает ресурсы, связанные с хранилищем.
+// - CheckStorage: Проверяет доступность хранилища.
 type MetricStorage interface {
 	Save(ctx context.Context, mt service.Metrics) error
 	SaveAll(ctx context.Context, mt *[]service.Metrics) error
@@ -31,12 +47,34 @@ type MetricStorage interface {
 	CheckStorage() error
 }
 
+//mockgen -source=internal/handlers/handlers.go -destination=internal/mocks/mock_storage.go -package=mocks
+
+// MetricsServer представляет сервер для обработки метрик.
+// Он управляет хранилищем метрик и предоставляет методы для их сохранения, получения и обработки.
+// Поля:
+//   - MetricStorage: Интерфейс хранилища метрик (база данных, файловое хранилище или память).
+//     Используется для выполнения операций с метриками.
+//   - Config: Конфигурация сервера, содержащая параметры подключения и настройки.
+//   - syncMutex: Мьютекс для обеспечения потокобезопасности при работе с общими ресурсами.
 type MetricsServer struct {
 	MetricStorage MetricStorage
 	Config        config.ConfigServ
 	syncMutex     sync.Mutex
 }
 
+// NewMetricsServer создает новый экземпляр MetricsServer с выбранным хранилищем метрик.
+//
+// Выбор хранилища зависит от конфигурации:
+// - Если Config.DBDsn не пустой, используется хранилище на основе PostgreSQL (DBStorage).
+// - Если Config.FileStoragePath не пустой, используется файловое хранилище (FileStorage).
+// - Если ни один из вышеперечисленных параметров не задан, используется хранилище в оперативной памяти (MemStorage).
+//
+// Параметры:
+// - Config: Конфигурация сервера, содержащая параметры для подключения к хранилищу.
+
+// Возвращаемые значения:
+// - *MetricsServer: Указатель на созданный экземпляр MetricsServer.
+// - error: Ошибка, если произошла проблема при инициализации хранилища.
 func NewMetricsServer(Config config.ConfigServ) (*MetricsServer, error) {
 	var ms MetricStorage
 	if len(Config.DBDsn) > 0 {
@@ -56,24 +94,36 @@ func NewMetricsServer(Config config.ConfigServ) (*MetricsServer, error) {
 	return &MetricsServer{MetricStorage: ms, Config: Config}, nil
 }
 
+// IncorrectMetricRq обрабатывает некорректные запросы на обновление метрик.
+//
+// В ответ на запрос отправляется HTTP-ошибка с кодом 400 (Bad Request) и сообщением:
+// "Incorrect update metric request!".
 func (ms *MetricsServer) IncorrectMetricRq(res http.ResponseWriter, req *http.Request) {
 	http.Error(res, "Incorrect update metric request!", http.StatusBadRequest)
 }
 
+// NotfoundMetricRq обрабатывает запросы на получение или обновление несуществующих метрик.
+//
+// В ответ на запрос отправляется HTTP-ошибка с кодом 404 (Not Found) и сообщением:
+// "Metric not found!".
 func (ms *MetricsServer) NotfoundMetricRq(res http.ResponseWriter, req *http.Request) {
 	http.Error(res, "Metric not found!", http.StatusNotFound)
 }
 
+// HandlePutGaugeMetric обрабатывает HTTP-запросы на сохранение метрики типа "gauge".
+//
+// Метод извлекает имя метрики и её значение из параметров запроса, проверяет
+// их корректность, и сохраняет метрику в хранилище.
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий параметры пути "name" и "value".
 func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http.Request) {
 	ms.syncMutex.Lock()
 	defer ms.syncMutex.Unlock()
 
 	ctx := context.TODO()
 
-	if req.Method != http.MethodPost {
-		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
 	n := req.PathValue("name")
 	if len(n) == 0 {
 		http.Error(res, "Incorrect name!", http.StatusNotFound)
@@ -96,16 +146,20 @@ func (ms *MetricsServer) HandlePutGaugeMetric(res http.ResponseWriter, req *http
 	res.WriteHeader(http.StatusOK)
 }
 
+// HandlePutCounterMetric обрабатывает HTTP-запросы на сохранение метрики типа "counter".
+//
+// Метод извлекает имя метрики и её значение из параметров запроса, проверяет
+// их корректность, и сохраняет метрику в хранилище.
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий параметры пути "name" и "value".
 func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *http.Request) {
 	ms.syncMutex.Lock()
 	defer ms.syncMutex.Unlock()
 
 	ctx := context.TODO()
 
-	if req.Method != http.MethodPost {
-		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
-		return
-	}
 	n := req.PathValue("name")
 	if len(n) == 0 {
 		http.Error(res, "Incorrect name!", http.StatusNotFound)
@@ -128,6 +182,14 @@ func (ms *MetricsServer) HandlePutCounterMetric(res http.ResponseWriter, req *ht
 	res.WriteHeader(http.StatusOK)
 }
 
+// UpdateMetric обрабатывает HTTP-запросы на обновление метрик через JSON.
+//
+// Метод принимает метрику в формате JSON, проверяет её корректность, сохраняет
+// в хранилище и возвращает обновленную метрику в ответе.
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий метрику в формате JSON в теле запроса
 func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request) {
 	ms.syncMutex.Lock()
 	defer ms.syncMutex.Unlock()
@@ -174,6 +236,14 @@ func (ms *MetricsServer) UpdateMetric(res http.ResponseWriter, req *http.Request
 
 }
 
+// ExtractMetric обрабатывает HTTP-запросы на получение метрик через JSON.
+//
+// Метод принимает метрику в формате JSON, проверяет её корректность, извлекает
+// метрику из хранилища и возвращает её в ответе.
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий метрику в формате JSON в теле запроса.
 func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Request) {
 	ctx := context.TODO()
 	res.Header().Set("Content-Type", "application/json")
@@ -218,6 +288,15 @@ func (ms *MetricsServer) ExtractMetric(res http.ResponseWriter, req *http.Reques
 	res.Write(bufResp)
 }
 
+// HandleGetMetric обрабатывает HTTP-запросы на получение значения метрики.
+//
+// Метод извлекает тип и имя метрики из параметров запроса, проверяет их
+// корректность, и возвращает значение метрики в ответе в текстовом формате
+// (text/html).
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий параметры пути "type" и "name".
 func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Request) {
 	ctx := context.TODO()
 	res.Header().Set("Content-Type", "text/html")
@@ -249,6 +328,14 @@ func (ms *MetricsServer) HandleGetMetric(res http.ResponseWriter, req *http.Requ
 	}
 }
 
+// HandleGetAllMetrics обрабатывает HTTP-запросы на получение всех метрик в виде HTML-страницы.
+//
+// Метод извлекает все метрики из хранилища, записывает их в HTML-шаблон и
+// возвращает результат клиенту.
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий запрос на получение всех метрик.
 func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.Request) {
 	ctx := context.TODO()
 	res.Header().Set("Content-Type", "text/html")
@@ -275,6 +362,12 @@ func (ms *MetricsServer) HandleGetAllMetrics(res http.ResponseWriter, req *http.
 	res.WriteHeader(http.StatusOK)
 }
 
+// CheckDBConnect обрабатывает HTTP-запросы на проверку подключения к базе данных.
+// Метод проверяет состояние подключения к хранилищу метрик и возвращает результат проверки.
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий запрос на проверку подключения к базе данных.
 func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		http.Error(res, "Only GET requests are allowed!", http.StatusMethodNotAllowed)
@@ -289,6 +382,14 @@ func (ms *MetricsServer) CheckDBConnect(res http.ResponseWriter, req *http.Reque
 	res.Write([]byte("Status OK"))
 }
 
+// UpdateBatch обрабатывает HTTP-запросы на пакетное обновление метрик.
+//
+// Метод принимает массив метрик в формате JSON, проверяет их корректность,
+// сохраняет в хранилище и возвращает обновленный список всех метрик в ответе.
+//
+// Параметры:
+// - res: HTTP-ответ, который будет отправлен клиенту.
+// - req: HTTP-запрос, содержащий массив метрик в формате JSON в теле запроса.
 func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request) {
 	ms.syncMutex.Lock()
 	defer ms.syncMutex.Unlock()
@@ -304,26 +405,22 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 	var allMtrx *map[string]service.Metrics
 	var mTemp []service.Metrics
 
-	var bufJSON bytes.Buffer
-	_, err := bufJSON.ReadFrom(req.Body)
+	if err := ReadAndUnmarshal(req, &mTemp); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			res.WriteHeader(http.StatusRequestEntityTooLarge)
+		} else {
+			res.WriteHeader(http.StatusBadRequest)
+		}
+		return
+	}
+	err := ms.MetricStorage.SaveAll(ctx, &mTemp)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
-
-	defer req.Body.Close()
-
-	if bufJSON.Len() > 0 {
-		if err := json.Unmarshal(bufJSON.Bytes(), &mTemp); err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if err := ms.MetricStorage.SaveAll(ctx, &mTemp); err != nil {
-			res.WriteHeader(http.StatusBadRequest)
-			return
-		}
-	}
-	if allMtrx, err = ms.MetricStorage.List(ctx); err != nil {
+	allMtrx, err = ms.MetricStorage.List(ctx)
+	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -338,7 +435,7 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 		signBuf = append(signBuf, ms.Config.Key...)
 
 		sign := sha256.Sum256(signBuf)
-		req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
+		res.Header().Set("HashSHA256", hex.EncodeToString(sign[:]))
 	}
 	res.WriteHeader(http.StatusOK)
 

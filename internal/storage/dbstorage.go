@@ -12,74 +12,87 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+type DB interface {
+	Ping() error
+	Exec(query string, args ...interface{}) (sql.Result, error)
+	BeginTx(ctx context.Context, opts *sql.TxOptions) (*sql.Tx, error)
+	Prepare(query string) (*sql.Stmt, error)
+	Close() error
+}
+
+type Stmt interface {
+	Exec(args ...interface{}) (sql.Result, error)
+	QueryRow(args ...interface{}) *sql.Row
+}
+
 type DBStorage struct {
 	DBDSN           string
-	db              *sql.DB
-	saveGaugeStmt   *sql.Stmt
-	saveCounterStmt *sql.Stmt
-	getStmt         *sql.Stmt
-	listStmt        *sql.Stmt
+	db              DB
+	saveGaugeStmt   Stmt
+	saveCounterStmt Stmt
+	getStmt         Stmt
+	listStmt        Stmt
 }
 
 func (ms *DBStorage) NewStorage() error {
-	var err error
-	if ms.db, err = sql.Open("pgx", ms.DBDSN); err != nil {
+
+	if ms.db == nil {
+		var err error
+		if ms.db, err = sql.Open("pgx", ms.DBDSN); err != nil {
+			return err
+		}
+	}
+
+	err := ms.retry(func() error {
+		return ms.db.Ping()
+	}, 3)
+	if err != nil {
 		return err
 	}
 
+	createStmt := "create table if not exists metrix (id varchar(32) PRIMARY KEY, value jsonb not null)"
 	err = ms.retry(func() error {
-		err := ms.db.Ping()
+		_, err := ms.db.Exec(createStmt)
 		return err
 	}, 3)
 	if err != nil {
 		return err
 	}
 
-	var createStmt = "create table if not exists metrix (id varchar(32) PRIMARY KEY, value jsonb not null)"
+	saveGaugeQuery := "insert into metrix values($1::varchar, jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision)) on conflict(id) do update set value = jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision) where metrix.id = $1::varchar;"
 	err = ms.retry(func() error {
-		_, err = ms.db.Exec(createStmt)
+		var err error
+		ms.saveGaugeStmt, err = ms.db.Prepare(saveGaugeQuery)
 		return err
 	}, 3)
 	if err != nil {
 		return err
 	}
 
+	saveCounterQuery := "insert into metrix values($1::varchar, jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'delta', $3::bigint)) on conflict(id) do update set value = jsonb_set(metrix.value, '{delta}', ((metrix.value ->> 'delta')::bigint + $3::bigint)::text::jsonb, false) where metrix.id = $1::varchar;"
 	err = ms.retry(func() error {
-		ms.saveGaugeStmt, err = ms.db.Prepare("insert into metrix " +
-			"values($1::varchar, " +
-			"jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision)) " +
-			"on conflict(id) do update " +
-			"set value = jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'value', $3::double precision) " +
-			"where metrix.id = $1::varchar;")
+		var err error
+		ms.saveCounterStmt, err = ms.db.Prepare(saveCounterQuery)
 		return err
 	}, 3)
 	if err != nil {
 		return err
 	}
 
+	getQuery := "select value from metrix where id = $1::varchar;"
 	err = ms.retry(func() error {
-		ms.saveCounterStmt, err = ms.db.Prepare("insert into metrix " +
-			"values($1::varchar, " +
-			"jsonb_build_object('id', $1::varchar, 'type', $2::varchar, 'delta', $3::bigint)) " +
-			"on conflict(id) do update " +
-			"set value = jsonb_set(metrix.value, '{delta}', ((metrix.value ->> 'delta')::bigint + $3::bigint)::text::jsonb, false) " +
-			"where metrix.id = $1::varchar;")
+		var err error
+		ms.getStmt, err = ms.db.Prepare(getQuery)
 		return err
 	}, 3)
 	if err != nil {
 		return err
 	}
 
+	listQuery := "select jsonb_object_agg(k,v) from metrix, jsonb_each(jsonb_build_object(id, value)) as t(k,v);"
 	err = ms.retry(func() error {
-		ms.getStmt, err = ms.db.Prepare("select value from metrix where id = $1::varchar;")
-		return err
-	}, 3)
-	if err != nil {
-		return err
-	}
-
-	err = ms.retry(func() error {
-		ms.listStmt, err = ms.db.Prepare("select jsonb_object_agg(k,v) from metrix, jsonb_each(jsonb_build_object(id, value)) as t(k,v);")
+		var err error
+		ms.listStmt, err = ms.db.Prepare(listQuery)
 		return err
 	}, 3)
 	if err != nil {
@@ -88,7 +101,6 @@ func (ms *DBStorage) NewStorage() error {
 
 	return nil
 }
-
 func isPgTransportError(err error) bool {
 	if err != nil {
 		var pgErr *pgconn.PgError
