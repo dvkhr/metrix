@@ -210,3 +210,92 @@ func ExampleMetricsServer_ExtractMetric() {
 	// Output:
 	// Metric extracted successfully
 }
+func ExampleMetricsServer_HandlePutGaugeMetric_invalidName() {
+	if err := logging.InitTestLogger(); err != nil {
+		fmt.Printf("Failed to initialize test logger: %v\n", err)
+		return
+	}
+
+	cfg := config.ConfigServ{
+		Address: ":8080",
+	}
+
+	metricServer, err := handlers.NewMetricsServer(cfg)
+	if err != nil {
+		panic("Failed to initialize MetricsServer: " + err.Error())
+	}
+
+	r := chi.NewRouter()
+	r = routes.SetupRoutes(r, logging.Logg, cfg, metricServer)
+
+	testServer := httptest.NewServer(r)
+	defer testServer.Close()
+
+	// Некорректный запрос: пустое имя метрики
+	req, err := http.NewRequest("POST", testServer.URL+"/update/gauge//42.0", nil)
+	if err != nil {
+		panic("Failed to create request: " + err.Error())
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic("Failed to send request: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		fmt.Println("Error: Incorrect name!")
+	} else {
+		fmt.Println("Unexpected response")
+	}
+
+	// Output:
+	// Error: Incorrect name!
+}
+
+func ExampleMetricsServer_UpdateMetric_invalidJSON() {
+	if err := logging.InitTestLogger(); err != nil {
+		fmt.Printf("Failed to initialize test logger: %v\n", err)
+		return
+	}
+
+	cfg := config.ConfigServ{
+		Address: ":8080",
+	}
+
+	metricServer, err := handlers.NewMetricsServer(cfg)
+	if err != nil {
+		panic("Failed to initialize MetricsServer: " + err.Error())
+	}
+
+	r := chi.NewRouter()
+	r = routes.SetupRoutes(r, logging.Logg, cfg, metricServer)
+
+	testServer := httptest.NewServer(r)
+	defer testServer.Close()
+
+	// Некорректный JSON-тело
+	invalidJSON := []byte(`{"ID": "test_metric", "MType": "gauge", "Value": "invalid"}`)
+	req, err := http.NewRequest("POST", testServer.URL+"/update/", bytes.NewBuffer(invalidJSON))
+	if err != nil {
+		panic("Failed to create request: " + err.Error())
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		panic("Failed to send request: " + err.Error())
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusBadRequest {
+		fmt.Println("Error: Invalid JSON body")
+	} else {
+		fmt.Println("Unexpected response")
+	}
+
+	// Output:
+	// Error: Invalid JSON body
+}
