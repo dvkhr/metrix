@@ -1,3 +1,4 @@
+// Package sign предоставляет инструменты для проверки подписи HTTP-запросов.
 package sign
 
 import (

@@ -1,3 +1,4 @@
+// Package service предоставляет функции для работы с метриками.
 package service
 
 import (

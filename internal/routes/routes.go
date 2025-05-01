@@ -1,3 +1,4 @@
+// Package routes предоставляет инструменты для настройки маршрутов HTTP-сервера метрик.
 package routes
 
 import (

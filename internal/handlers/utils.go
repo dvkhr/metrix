@@ -1,3 +1,4 @@
+// Package handlers предоставляет HTTP-обработчики для работы с метриками.
 package handlers
 
 import (
