@@ -1,5 +1,6 @@
 {
     "analyzers": [
+      "noosexit",
       "asmdecl",
       "assign",
       "atomic",

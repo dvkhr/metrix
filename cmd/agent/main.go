@@ -18,13 +18,13 @@ func main() {
 	projectRoot := filepath.Join(exeDir, "../../") // Поднимаемся на два уровня выше
 	if err := os.Chdir(projectRoot); err != nil {
 		fmt.Printf("Failed to change working directory to %s: %v", projectRoot, err)
-		os.Exit(1)
+		return
 	}
 
 	// Инициализация глобального логгера
 	if err := logging.InitLogger("internal/config/logger_config.json"); err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	var cfg AgentConfig
@@ -34,7 +34,7 @@ func main() {
 
 	if err != nil {
 		logging.Logg.Error("Server configuration error: %v", err)
-		os.Exit(1)
+		return
 	}
 
 	cl := newHTTPClient()
