@@ -18,6 +18,10 @@ import (
 	_ "net/http/pprof" // Импортируем pprof
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
 var (
 	cfg          config.ConfigServ
 	MetricServer *handlers.MetricsServer
@@ -68,6 +72,8 @@ func init() {
 }
 
 func main() {
+	printBuildInfo()
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
@@ -97,4 +103,17 @@ func startPProf() {
 	if err := http.ListenAndServe("localhost:9090", nil); err != nil {
 		fmt.Println("Failed to start pprof server:", err)
 	}
+}
+
+func printBuildInfo() {
+	fmt.Printf("Build version: %s\n", getValueOrDefault(buildVersion))
+	fmt.Printf("Build date: %s\n", getValueOrDefault(buildDate))
+	fmt.Printf("Build commit: %s\n", getValueOrDefault(buildCommit))
+}
+
+func getValueOrDefault(value string) string {
+	if value == "" {
+		return "N/A"
+	}
+	return value
 }
