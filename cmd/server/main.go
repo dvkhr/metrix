@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/dvkhr/metrix.git/internal/buildinfo"
 	"github.com/dvkhr/metrix.git/internal/config"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logging"
@@ -72,7 +73,7 @@ func init() {
 }
 
 func main() {
-	printBuildInfo()
+	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
@@ -103,17 +104,4 @@ func startPProf() {
 	if err := http.ListenAndServe("localhost:9090", nil); err != nil {
 		fmt.Println("Failed to start pprof server:", err)
 	}
-}
-
-func printBuildInfo() {
-	fmt.Printf("Build version: %s\n", getValueOrDefault(buildVersion))
-	fmt.Printf("Build date: %s\n", getValueOrDefault(buildDate))
-	fmt.Printf("Build commit: %s\n", getValueOrDefault(buildCommit))
-}
-
-func getValueOrDefault(value string) string {
-	if value == "" {
-		return "N/A"
-	}
-	return value
 }

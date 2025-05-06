@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"path/filepath"
 
+	"github.com/dvkhr/metrix.git/internal/buildinfo"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/sender"
 	"github.com/dvkhr/metrix.git/internal/service"
@@ -18,7 +19,7 @@ var buildCommit string
 
 // go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=2025-05-05 -X main.buildCommit=commit"
 func main() {
-	printBuildInfo()
+	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
 	// Установка рабочей директории в корень проекта
 	exeDir := filepath.Dir(os.Args[0])             // Директория исполняемого файла
@@ -73,17 +74,4 @@ func main() {
 	stopChan <- true
 
 	logging.Logg.Info("agent shut down completed")
-}
-
-func printBuildInfo() {
-	fmt.Printf("Build version: %s\n", getValueOrDefault(buildVersion))
-	fmt.Printf("Build date: %s\n", getValueOrDefault(buildDate))
-	fmt.Printf("Build commit: %s\n", getValueOrDefault(buildCommit))
-}
-
-func getValueOrDefault(value string) string {
-	if value == "" {
-		return "N/A"
-	}
-	return value
 }
