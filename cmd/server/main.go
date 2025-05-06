@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/dvkhr/metrix.git/internal/buildinfo"
 	"github.com/dvkhr/metrix.git/internal/config"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logging"
@@ -17,6 +18,10 @@ import (
 
 	_ "net/http/pprof" // Импортируем pprof
 )
+
+var buildVersion string
+var buildDate string
+var buildCommit string
 
 var (
 	cfg          config.ConfigServ
@@ -68,6 +73,8 @@ func init() {
 }
 
 func main() {
+	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 

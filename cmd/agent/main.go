@@ -7,24 +7,32 @@ import (
 	"os/signal"
 	"path/filepath"
 
+	"github.com/dvkhr/metrix.git/internal/buildinfo"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/sender"
 	"github.com/dvkhr/metrix.git/internal/service"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
+// go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=2025-05-05 -X main.buildCommit=commit"
 func main() {
+	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
+
 	// Установка рабочей директории в корень проекта
 	exeDir := filepath.Dir(os.Args[0])             // Директория исполняемого файла
 	projectRoot := filepath.Join(exeDir, "../../") // Поднимаемся на два уровня выше
 	if err := os.Chdir(projectRoot); err != nil {
 		fmt.Printf("Failed to change working directory to %s: %v", projectRoot, err)
-		os.Exit(1)
+		return
 	}
 
 	// Инициализация глобального логгера
 	if err := logging.InitLogger("internal/config/logger_config.json"); err != nil {
 		fmt.Printf("Failed to initialize logger: %v\n", err)
-		os.Exit(1)
+		return
 	}
 
 	var cfg AgentConfig
@@ -34,7 +42,7 @@ func main() {
 
 	if err != nil {
 		logging.Logg.Error("Server configuration error: %v", err)
-		os.Exit(1)
+		return
 	}
 
 	cl := newHTTPClient()

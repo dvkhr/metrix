@@ -1,3 +1,4 @@
+// Package storage предоставляет реализации хранилищ метрик для различных типов данных.
 package storage
 
 import (

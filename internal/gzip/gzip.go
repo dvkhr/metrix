@@ -1,3 +1,5 @@
+// Package gzip предоставляет middleware для сжатия и декомпрессии HTTP-запросов и ответов.
+
 package gzip
 
 import (
