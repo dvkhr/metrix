@@ -81,46 +81,7 @@ func main() {
 		panic(fmt.Errorf("failed to parse config file: %w", err))
 	}
 
-	// Карта всех доступных анализаторов
-	allAnalyzers := map[string]*analysis.Analyzer{
-		"asmdecl":         asmdecl.Analyzer,           // Проверяет корректность объявлений ассемблера.
-		"assign":          assign.Analyzer,            // Обнаруживает бесполезные присваивания.
-		"atomic":          atomic.Analyzer,            // Проверяет использование пакета sync/atomic.
-		"bools":           bools.Analyzer,             // Находит подозрительные операции с булевыми значениями.
-		"buildtag":        buildtag.Analyzer,          // Проверяет правильность тегов сборки.
-		"cgocall":         cgocall.Analyzer,           // Проверяет вызовы C-функций через cgo.
-		"composite":       composite.Analyzer,         // Находит некорректные составные литералы.
-		"copylock":        copylock.Analyzer,          // Обнаруживает копирование значений типа sync.Mutex.
-		"deepequalerrors": deepequalerrors.Analyzer,   // Проверяет использование reflect.DeepEqual с ошибками.
-		"errorsas":        errorsas.Analyzer,          // Проверяет использование функции errors.As.
-		"httpresponse":    httpresponse.Analyzer,      // Проверяет неправильное использование http.Response.Body.
-		"ifaceassert":     ifaceassert.Analyzer,       // Проверяет утверждения типов интерфейсов.
-		"loopclosure":     loopclosure.Analyzer,       // Находит замыкания, захватывающие переменные цикла.
-		"lostcancel":      lostcancel.Analyzer,        // Проверяет потерю контекста отмены.
-		"nilfunc":         nilfunc.Analyzer,           // Находит сравнение nil с функциями.
-		"printf":          printf.Analyzer,            // Проверяет форматированные строки в функциях fmt.Printf.
-		"shift":           shift.Analyzer,             // Проверяет сдвиги битов.
-		"stdmethods":      stdmethods.Analyzer,        // Проверяет соответствие методов стандартным интерфейсам.
-		"stringintconv":   stringintconv.Analyzer,     // Проверяет преобразования строк в целые числа.
-		"structtag":       structtag.Analyzer,         // Проверяет теги структур.
-		"tests":           tests.Analyzer,             // Проверяет тестовые функции.
-		"unmarshal":       unmarshal.Analyzer,         // Проверяет использование функций unmarshal.
-		"unreachable":     unreachable.Analyzer,       // Находит недостижимый код.
-		"unusedresult":    unusedresult.Analyzer,      // Проверяет игнорирование результатов функций.
-		"nilness":         nilness.Analyzer,           // Проверяет использование nil.
-		"noosexit":        analyzers.NoOsExitAnalyzer, // Запрещает использование os.Exit в функции main.
-	}
-
-	// Добавляем анализаторы staticcheck
-	for _, a := range staticcheck.Analyzers {
-		allAnalyzers[a.Analyzer.Name] = a.Analyzer
-	}
-	for _, a := range simple.Analyzers {
-		allAnalyzers[a.Analyzer.Name] = a.Analyzer
-	}
-	for _, a := range stylecheck.Analyzers {
-		allAnalyzers[a.Analyzer.Name] = a.Analyzer
-	}
+	allAnalyzers := initAnalyzersMap()
 
 	// Формируем список анализаторов на основе конфигурации
 	var mychecks []*analysis.Analyzer
@@ -136,4 +97,49 @@ func main() {
 
 	// Запускаем multichecker
 	multichecker.Main(mychecks...)
+}
+
+// initAnalyzersMap создает и возвращает карту всех доступных анализаторов.
+func initAnalyzersMap() map[string]*analysis.Analyzer {
+	allAnalyzers := map[string]*analysis.Analyzer{
+		"asmdecl":         asmdecl.Analyzer,
+		"assign":          assign.Analyzer,
+		"atomic":          atomic.Analyzer,
+		"bools":           bools.Analyzer,
+		"buildtag":        buildtag.Analyzer,
+		"cgocall":         cgocall.Analyzer,
+		"composite":       composite.Analyzer,
+		"copylock":        copylock.Analyzer,
+		"deepequalerrors": deepequalerrors.Analyzer,
+		"errorsas":        errorsas.Analyzer,
+		"httpresponse":    httpresponse.Analyzer,
+		"ifaceassert":     ifaceassert.Analyzer,
+		"loopclosure":     loopclosure.Analyzer,
+		"lostcancel":      lostcancel.Analyzer,
+		"nilfunc":         nilfunc.Analyzer,
+		"printf":          printf.Analyzer,
+		"shift":           shift.Analyzer,
+		"stdmethods":      stdmethods.Analyzer,
+		"stringintconv":   stringintconv.Analyzer,
+		"structtag":       structtag.Analyzer,
+		"tests":           tests.Analyzer,
+		"unmarshal":       unmarshal.Analyzer,
+		"unreachable":     unreachable.Analyzer,
+		"unusedresult":    unusedresult.Analyzer,
+		"nilness":         nilness.Analyzer,
+		"noosexit":        analyzers.NoOsExitAnalyzer,
+	}
+
+	// Добавляем анализаторы staticcheck
+	for _, a := range staticcheck.Analyzers {
+		allAnalyzers[a.Analyzer.Name] = a.Analyzer
+	}
+	for _, a := range simple.Analyzers {
+		allAnalyzers[a.Analyzer.Name] = a.Analyzer
+	}
+	for _, a := range stylecheck.Analyzers {
+		allAnalyzers[a.Analyzer.Name] = a.Analyzer
+	}
+
+	return allAnalyzers
 }
