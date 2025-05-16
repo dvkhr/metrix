@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -18,11 +19,13 @@ type ConfigServ struct {
 	DBDsn           string
 	Restore         bool
 	Key             string
+	CryptoKey       string
 }
 
 var (
 	ErrStoreIntetrvalNegativ = errors.New("storeInterval is negativ or zero")
 	ErrAddressEmpty          = errors.New("address is an empty string")
+	ErrCryptoKeyFileNotFound = errors.New("crypto key file not found")
 )
 
 func (cfg *ConfigServ) check() error {
@@ -37,6 +40,11 @@ func (cfg *ConfigServ) check() error {
 	} else if cfg.StoreInterval < 0*time.Microsecond {
 		errs = append(errs, ErrStoreIntetrvalNegativ)
 	}
+	if cfg.CryptoKey != "" {
+		if _, err := os.Stat(cfg.CryptoKey); os.IsNotExist(err) {
+			errs = append(errs, fmt.Errorf("%w: %s", ErrCryptoKeyFileNotFound, cfg.CryptoKey))
+		}
+	}
 	return errors.Join(errs...)
 }
 
@@ -49,6 +57,7 @@ func (cfg *ConfigServ) ParseFlags() error {
 	flag.Int64Var(&storInt, "i", 0, "Frequency of saving to disk in seconds")
 	flag.BoolVar(&cfg.Restore, "r", true, "loading saved values")
 	flag.StringVar(&cfg.Key, "k", "", "Key")
+	flag.StringVar(&cfg.CryptoKey, "crypto-key", "", "Path to the private key file for decryption (optional)")
 	flag.Parse()
 
 	if envVarAddr := os.Getenv("ADDRESS"); envVarAddr != "" {
@@ -72,6 +81,9 @@ func (cfg *ConfigServ) ParseFlags() error {
 		cfg.Key = envVarKey
 	}
 	cfg.StoreInterval = time.Duration(storInt) * time.Second
+	if envVarCryptoKey := os.Getenv("CRYPTO_KEY"); envVarCryptoKey != "" {
+		cfg.CryptoKey = envVarCryptoKey
+	}
 	return cfg.check()
 }
 

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -13,11 +14,12 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/dvkhr/metrix.git/internal/crypto"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client, serverAddress string, signKey []byte) error {
+func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client, serverAddress string, signKey []byte, publicKey *rsa.PublicKey) error {
 
 	logging.Logg.Info("+++Send metrics to server+++\n")
 
@@ -28,10 +30,21 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 			return err
 		}
 
+		var encryptedData string
+		if publicKey != nil {
+			encryptedData, err = crypto.EncryptData(jsonMetric, publicKey)
+			if err != nil {
+				logging.Logg.Error("Failed to encrypt data: %v", err)
+				return err
+			}
+		} else {
+			encryptedData = string(jsonMetric)
+		}
+
 		var requestBody bytes.Buffer
 
 		gz := gzip.NewWriter(&requestBody)
-		gz.Write(jsonMetric)
+		gz.Write([]byte(encryptedData))
 		gz.Close()
 
 		req, err := http.NewRequest("POST", buildAllMetricsURL(serverAddress), &requestBody)
