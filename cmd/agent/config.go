@@ -71,8 +71,9 @@ func (cfg *AgentConfig) parseFlags() error {
 	if envVarLim := os.Getenv("RATE_LIMIT"); envVarLim != "" {
 		cfg.rateLimit, _ = strconv.ParseInt(envVarLim, 10, 64)
 	}
-	flag.StringVar(&cfg.СryptoKey, "crypto-key", "", "Path to the public key file for encryption")
-
+	if envVarCryptoKey := os.Getenv("CRYPTO_KEY"); envVarCryptoKey != "" {
+		cfg.СryptoKey = envVarCryptoKey
+	}
 	return cfg.check()
 }
 func newHTTPClient() *http.Client {
