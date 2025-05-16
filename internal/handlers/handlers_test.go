@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/dvkhr/metrix.git/internal/config"
+	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/mocks"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/go-chi/chi/v5"
@@ -262,6 +263,10 @@ func TestUpdateBatch(t *testing.T) {
 	})
 
 	t.Run("Invalid JSON Body", func(t *testing.T) {
+		if err := logging.InitTestLogger(); err != nil {
+			fmt.Printf("Failed to initialize test logger: %v\n", err)
+			return
+		}
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
 
@@ -269,14 +274,18 @@ func TestUpdateBatch(t *testing.T) {
 
 		server := &MetricsServer{
 			MetricStorage: mockStorage,
-			Config:        config.ConfigServ{Key: "test_key"},
+			Config: config.ConfigServ{
+				Key: "test_key", // Подпись включена
+			},
 		}
 
+		// Отправляем некорректный JSON
 		req := httptest.NewRequest(http.MethodPost, "/update/batch", bytes.NewReader([]byte("invalid_json")))
 		res := httptest.NewRecorder()
 
 		server.UpdateBatch(res, req)
 
+		// Проверяем, что статус равен 400
 		assert.Equal(t, http.StatusBadRequest, res.Code)
 	})
 
