@@ -38,7 +38,6 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 				return err
 			}
 		} else {
-			// Если шифрование не используется, просто кодируем данные в base64
 			encryptedData = string(jsonMetric)
 		}
 

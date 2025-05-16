@@ -4,17 +4,19 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"sync"
 	"text/template"
 
 	"github.com/dvkhr/metrix.git/internal/config"
+	"github.com/dvkhr/metrix.git/internal/crypto"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/dvkhr/metrix.git/internal/storage"
@@ -403,19 +405,45 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 		http.Error(res, "Only POST requests are allowed!", http.StatusMethodNotAllowed)
 		return
 	}
-	var allMtrx *map[string]service.Metrics
-	var mTemp []service.Metrics
 
-	if err := ReadAndUnmarshal(req, &mTemp); err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			res.WriteHeader(http.StatusRequestEntityTooLarge)
-		} else {
-			res.WriteHeader(http.StatusBadRequest)
-		}
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(res, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
-	err := ms.MetricStorage.SaveAll(ctx, &mTemp)
+	defer req.Body.Close()
+
+	var privateKey *rsa.PrivateKey
+	if ms.Config.CryptoKey != "" {
+		var err error
+		privateKey, err = crypto.ReadPrivateKey(ms.Config.CryptoKey)
+		if err != nil {
+			logging.Logg.Error("Failed to read private key: %v", err)
+			return
+		}
+		logging.Logg.Info("Private key successfully loaded")
+	}
+
+	var decryptedData []byte
+	if privateKey != nil {
+		decryptedData, err = crypto.DecryptData(string(body), privateKey)
+		if err != nil {
+			logging.Logg.Error("Failed to decrypt data: %v", err)
+			http.Error(res, "Failed to decrypt data", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		decryptedData = body
+	}
+
+	var allMtrx *map[string]service.Metrics
+	var mTemp []service.Metrics
+	if err := json.Unmarshal(decryptedData, &mTemp); err != nil {
+		logging.Logg.Error("Failed to unmarshal metrics: %v", err)
+		http.Error(res, "Failed to parse metrics", http.StatusBadRequest)
+		return
+	}
+	err = ms.MetricStorage.SaveAll(ctx, &mTemp)
 	if err != nil {
 		res.WriteHeader(http.StatusBadRequest)
 		return
