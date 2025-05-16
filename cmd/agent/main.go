@@ -20,6 +20,8 @@ var buildDate string
 var buildCommit string
 
 // go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=2025-05-05 -X main.buildCommit=commit"
+//
+//	./agent -crypto-key= "/home/max/go/src/metrix/cmd/agent/public_key.pem"
 func main() {
 	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
