@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 
 	"github.com/dvkhr/metrix.git/internal/buildinfo"
+	"github.com/dvkhr/metrix.git/internal/crypto"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/sender"
 	"github.com/dvkhr/metrix.git/internal/service"
@@ -45,6 +47,18 @@ func main() {
 		return
 	}
 
+	// Чтение публичного ключа
+	var publicKey *rsa.PublicKey
+	if cfg.СryptoKey != "" {
+		var err error
+		publicKey, err = crypto.ReadPublicKey(cfg.СryptoKey)
+		if err != nil {
+			logging.Logg.Error("Failed to read public key: %v", err)
+			return
+		}
+		logging.Logg.Info("Public key successfully loaded")
+	}
+
 	cl := newHTTPClient()
 
 	stopChan := make(chan bool)
@@ -58,8 +72,8 @@ func main() {
 
 	collectOSWorker := CollectWorker{wf: service.CollectMetricsOS, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
 	collectChWorker := CollectWorker{wf: service.CollectMetricsCh, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
-	sendMetricsWorker := SendWorker{wf: sender.SendMetrics, poll: cfg.reportInterval, ctx: ctx,
-		payloadChan: payloadChan, stopChan: stopChan, cl: cl, serverAddress: cfg.serverAddress, signKey: []byte(cfg.key)}
+	sendMetricsWorker := SendWorker{wf: sender.SendMetrics, poll: cfg.reportInterval, ctx: ctx, payloadChan: payloadChan,
+		stopChan: stopChan, cl: cl, serverAddress: cfg.serverAddress, signKey: []byte(cfg.key), publicKey: publicKey}
 
 	go collectOSWorker.StartCollecting()
 	go collectChWorker.StartCollecting()

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -15,12 +16,14 @@ type AgentConfig struct {
 	pollInterval   int64
 	key            string
 	rateLimit      int64
+	СryptoKey      string
 }
 
 var (
 	ErrPollIntetrvalNegativ   = errors.New("poll interval is negativ or zero")
 	ErrReportIntetrvalNegativ = errors.New("report interval is negativ or zero")
 	ErrAddressEmpty           = errors.New("address is an empty string")
+	ErrCryptoKeyFileNotFound  = errors.New("crypto key file not found")
 )
 
 func (cfg *AgentConfig) check() error {
@@ -34,7 +37,11 @@ func (cfg *AgentConfig) check() error {
 	if cfg.reportInterval <= 0 {
 		err = append(err, ErrReportIntetrvalNegativ)
 	}
-
+	if cfg.СryptoKey != "" {
+		if _, errF := os.Stat(cfg.СryptoKey); os.IsNotExist(errF) {
+			err = append(err, fmt.Errorf("%w: %s", ErrCryptoKeyFileNotFound, cfg.СryptoKey))
+		}
+	}
 	return errors.Join(err...)
 }
 
@@ -44,6 +51,7 @@ func (cfg *AgentConfig) parseFlags() error {
 	flag.Int64Var(&cfg.pollInterval, "p", 2, "Frequency of metric polling in seconds")
 	flag.StringVar(&cfg.key, "k", "", "Key")
 	flag.Int64Var(&cfg.rateLimit, "l", 5, "Limiting outgoing requests")
+	flag.StringVar(&cfg.СryptoKey, "crypto-key", "", "Path to the public key file for encryption")
 
 	flag.Parse()
 
@@ -63,6 +71,7 @@ func (cfg *AgentConfig) parseFlags() error {
 	if envVarLim := os.Getenv("RATE_LIMIT"); envVarLim != "" {
 		cfg.rateLimit, _ = strconv.ParseInt(envVarLim, 10, 64)
 	}
+	flag.StringVar(&cfg.СryptoKey, "crypto-key", "", "Path to the public key file for encryption")
 
 	return cfg.check()
 }
