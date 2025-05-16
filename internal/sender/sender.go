@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -40,7 +39,7 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 			}
 		} else {
 			// Если шифрование не используется, просто кодируем данные в base64
-			encryptedData = base64.StdEncoding.EncodeToString(jsonMetric)
+			encryptedData = string(jsonMetric)
 		}
 
 		var requestBody bytes.Buffer
