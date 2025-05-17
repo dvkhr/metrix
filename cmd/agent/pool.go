@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"net/http"
 	"sync"
 	"time"
@@ -48,6 +49,7 @@ type SendWorker struct {
 	mStor         storage.MemStorage
 	serverAddress string
 	signKey       []byte
+	publicKey     *rsa.PublicKey
 }
 
 func (sw *SendWorker) Run() {
@@ -59,7 +61,7 @@ func (sw *SendWorker) Run() {
 			time.Since(sendInterval) >= time.Duration(sw.poll)*time.Second {
 			sw.mtx.Lock()
 			r := retry.Retry(sw.wf, 3)
-			err := r(sw.ctx, sw.mStor, sw.cl, sw.serverAddress, sw.signKey)
+			err := r(sw.ctx, sw.mStor, sw.cl, sw.serverAddress, sw.signKey, sw.publicKey)
 			if err != nil {
 				logging.Logg.Error("Send worker error", "error", err)
 			}
