@@ -58,6 +58,7 @@ func (cfg *ConfigServ) ParseFlags() error {
 	flag.BoolVar(&cfg.Restore, "r", true, "loading saved values")
 	flag.StringVar(&cfg.Key, "k", "", "Key")
 	flag.StringVar(&cfg.CryptoKey, "crypto-key", "", "Path to the private key file for decryption (optional)")
+
 	flag.Parse()
 
 	if envVarAddr := os.Getenv("ADDRESS"); envVarAddr != "" {

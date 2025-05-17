@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -46,12 +47,16 @@ func (cfg *AgentConfig) check() error {
 }
 
 func (cfg *AgentConfig) parseFlags() error {
+	var configFile string
+
 	flag.StringVar(&cfg.serverAddress, "a", "localhost:8080", "Endpoint HTTP-server")
 	flag.Int64Var(&cfg.reportInterval, "r", 10, "Frequency of sending metrics in seconds")
 	flag.Int64Var(&cfg.pollInterval, "p", 2, "Frequency of metric polling in seconds")
 	flag.StringVar(&cfg.key, "k", "", "Key")
 	flag.Int64Var(&cfg.rateLimit, "l", 5, "Limiting outgoing requests")
 	flag.StringVar(&cfg.СryptoKey, "crypto-key", "", "Path to the public key file for encryption")
+	flag.StringVar(&configFile, "c", "", "Path to the JSON configuration file")
+	flag.StringVar(&configFile, "config", "", "Path to the JSON configuration file")
 
 	flag.Parse()
 
@@ -74,6 +79,17 @@ func (cfg *AgentConfig) parseFlags() error {
 	if envVarCryptoKey := os.Getenv("CRYPTO_KEY"); envVarCryptoKey != "" {
 		cfg.СryptoKey = envVarCryptoKey
 	}
+
+	if configFileEnv := os.Getenv("CONFIG"); configFileEnv != "" && configFile == "" {
+		configFile = configFileEnv
+	}
+
+	if configFile != "" {
+		if err := cfg.LoadFromFile(configFile); err != nil {
+			return fmt.Errorf("failed to load config from file: %w", err)
+		}
+	}
+
 	return cfg.check()
 }
 func newHTTPClient() *http.Client {
@@ -84,4 +100,44 @@ func newHTTPClient() *http.Client {
 			IdleConnTimeout: 30 * time.Second,
 		},
 	}
+}
+
+type ConfigFile struct {
+	Address        string `json:"address"`
+	ReportInterval string `json:"report_interval"`
+	PollInterval   string `json:"poll_interval"`
+	CryptoKey      string `json:"crypto_key"`
+}
+
+func (cfg *AgentConfig) LoadFromFile(filePath string) error {
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	var configFile ConfigFile
+	if err := json.Unmarshal(file, &configFile); err != nil {
+		return fmt.Errorf("failed to parse config file: %w", err)
+	}
+
+	if configFile.Address != "" && cfg.serverAddress == "" {
+		cfg.serverAddress = configFile.Address
+	}
+	if configFile.ReportInterval != "" && cfg.reportInterval <= 0 {
+		duration, err := time.ParseDuration(configFile.ReportInterval)
+		if err == nil {
+			cfg.reportInterval = int64(duration.Seconds())
+		}
+	}
+	if configFile.PollInterval != "" && cfg.pollInterval <= 0 {
+		duration, err := time.ParseDuration(configFile.PollInterval)
+		if err == nil {
+			cfg.pollInterval = int64(duration.Seconds())
+		}
+	}
+	if configFile.CryptoKey != "" && cfg.СryptoKey == "" {
+		cfg.СryptoKey = configFile.CryptoKey
+	}
+
+	return nil
 }
