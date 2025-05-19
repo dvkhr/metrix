@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
-	"sync"
 	"syscall"
 
 	"github.com/dvkhr/metrix.git/internal/buildinfo"
@@ -69,6 +68,7 @@ func main() {
 	defer close(stopChan)
 
 	payloadChan := make(chan service.Metrics)
+	defer close(payloadChan)
 
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
@@ -78,40 +78,17 @@ func main() {
 	sendMetricsWorker := SendWorker{wf: sender.SendMetrics, poll: cfg.reportInterval, ctx: ctx, payloadChan: payloadChan,
 		stopChan: stopChan, cl: cl, serverAddress: cfg.serverAddress, signKey: []byte(cfg.key), publicKey: publicKey}
 
-	var wg sync.WaitGroup
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		collectOSWorker.StartCollecting()
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		collectChWorker.StartCollecting()
-	}()
+	go collectOSWorker.StartCollecting()
+	go collectChWorker.StartCollecting()
 
 	for i := 0; i < int(cfg.rateLimit); i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sendMetricsWorker.Run()
-		}()
+		go sendMetricsWorker.Run()
 	}
 
 	<-signalChan
 	logging.Logg.Info("shutting down agent...")
 
-	cancel() // Отменяем контекст
 	stopChan <- true
-
-	wg.Wait() // Ожидаем завершения всех рабочих процессов
-
-	close(payloadChan)
-	for metric := range payloadChan {
-		logging.Logg.Warn("Unsent metric detected", "metric", metric)
-	}
 
 	logging.Logg.Info("agent shut down completed")
 }
