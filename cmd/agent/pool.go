@@ -24,18 +24,20 @@ type CollectWorker struct {
 
 func (cw *CollectWorker) StartCollecting() {
 	pollTicker := time.NewTicker(time.Duration(cw.poll) * time.Second)
+	defer pollTicker.Stop()
 
-	for range pollTicker.C {
-		cw.wf(cw.ctx, cw.payloadChan)
+	for {
 		select {
 		case <-cw.stopChan:
+			logging.Logg.Info("Stopping CollectWorker due to stop signal")
 			return
-		default:
-			continue
+		case <-cw.ctx.Done():
+			logging.Logg.Info("Stopping CollectWorker due to context cancellation")
+			return
+		case <-pollTicker.C:
+			cw.wf(cw.ctx, cw.payloadChan)
 		}
 	}
-
-	defer pollTicker.Stop()
 }
 
 type SendWorker struct {
@@ -57,28 +59,34 @@ func (sw *SendWorker) Run() {
 	sw.mStor.NewStorage()
 
 	for {
-		if sendInterval.IsZero() ||
-			time.Since(sendInterval) >= time.Duration(sw.poll)*time.Second {
-			sw.mtx.Lock()
-			r := retry.Retry(sw.wf, 3)
-			err := r(sw.ctx, sw.mStor, sw.cl, sw.serverAddress, sw.signKey, sw.publicKey)
-			if err != nil {
-				logging.Logg.Error("Send worker error", "error", err)
-			}
-			sw.mStor.NewStorage()
-			sendInterval = time.Now()
-			sw.mtx.Unlock()
-		}
-
 		select {
-		case mtrx := <-sw.payloadChan:
-			sw.mtx.Lock()
-			sw.mStor.Save(sw.ctx, mtrx)
-			sw.mtx.Unlock()
 		case <-sw.stopChan:
+			logging.Logg.Info("Stopping SendWorker due to stop signal")
+			return
+		case <-sw.ctx.Done():
+			logging.Logg.Info("Stopping SendWorker due to context cancellation")
 			return
 		default:
-			continue
+			if sendInterval.IsZero() || time.Since(sendInterval) >= time.Duration(sw.poll)*time.Second {
+				sw.mtx.Lock()
+				r := retry.Retry(sw.wf, 3)
+				err := r(sw.ctx, sw.mStor, sw.cl, sw.serverAddress, sw.signKey, sw.publicKey)
+				if err != nil {
+					logging.Logg.Error("Send worker error", "error", err)
+				}
+				sw.mStor.NewStorage()
+				sendInterval = time.Now()
+				sw.mtx.Unlock()
+			}
+
+			select {
+			case mtrx := <-sw.payloadChan:
+				sw.mtx.Lock()
+				sw.mStor.Save(sw.ctx, mtrx)
+				sw.mtx.Unlock()
+			default:
+				continue
+			}
 		}
 	}
 }
