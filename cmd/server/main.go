@@ -29,6 +29,7 @@ var (
 	server       *http.Server
 )
 
+// ./server -crypto-key= "/home/max/go/src/metrix/cmd/server/private_key.pem"
 func init() {
 	handlers.CheckImplementations()
 
