@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/retry"
+	"github.com/dvkhr/metrix.git/internal/sender"
 	"github.com/dvkhr/metrix.git/internal/service"
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
@@ -48,6 +50,7 @@ type SendWorker struct {
 	mStor         storage.MemStorage
 	serverAddress string
 	signKey       []byte
+	publicKey     *rsa.PublicKey
 }
 
 func (sw *SendWorker) Run() {
@@ -58,8 +61,17 @@ func (sw *SendWorker) Run() {
 		if sendInterval.IsZero() ||
 			time.Since(sendInterval) >= time.Duration(sw.poll)*time.Second {
 			sw.mtx.Lock()
+
+			options := sender.SendOptions{
+				MemStorage:    sw.mStor,
+				Client:        sw.cl,
+				ServerAddress: sw.serverAddress,
+				SignKey:       sw.signKey,
+				PublicKey:     sw.publicKey,
+			}
+
 			r := retry.Retry(sw.wf, 3)
-			err := r(sw.ctx, sw.mStor, sw.cl, sw.serverAddress, sw.signKey)
+			err := r(sw.ctx, options)
 			if err != nil {
 				logging.Logg.Error("Send worker error", "error", err)
 			}

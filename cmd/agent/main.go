@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"crypto/rsa"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"syscall"
 
 	"github.com/dvkhr/metrix.git/internal/buildinfo"
+	"github.com/dvkhr/metrix.git/internal/crypto"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/sender"
 	"github.com/dvkhr/metrix.git/internal/service"
@@ -18,6 +21,8 @@ var buildDate string
 var buildCommit string
 
 // go build -ldflags "-X main.buildVersion=1.0.0 -X main.buildDate=2025-05-05 -X main.buildCommit=commit"
+//
+//	./agent -crypto-key= "/home/max/go/src/metrix/cmd/agent/public_key.pem"
 func main() {
 	buildinfo.PrintBuildInfo(buildVersion, buildDate, buildCommit)
 
@@ -45,6 +50,18 @@ func main() {
 		return
 	}
 
+	// Чтение публичного ключа
+	var publicKey *rsa.PublicKey
+	if cfg.СryptoKey != "" {
+		var err error
+		publicKey, err = crypto.ReadPublicKey(cfg.СryptoKey)
+		if err != nil {
+			logging.Logg.Error("Failed to read public key: %v", err)
+			return
+		}
+		logging.Logg.Info("Public key successfully loaded")
+	}
+
 	cl := newHTTPClient()
 
 	stopChan := make(chan bool)
@@ -54,12 +71,12 @@ func main() {
 	defer close(payloadChan)
 
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
+	signal.Notify(signalChan, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 
 	collectOSWorker := CollectWorker{wf: service.CollectMetricsOS, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
 	collectChWorker := CollectWorker{wf: service.CollectMetricsCh, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
-	sendMetricsWorker := SendWorker{wf: sender.SendMetrics, poll: cfg.reportInterval, ctx: ctx,
-		payloadChan: payloadChan, stopChan: stopChan, cl: cl, serverAddress: cfg.serverAddress, signKey: []byte(cfg.key)}
+	sendMetricsWorker := SendWorker{wf: sender.SendMetrics, poll: cfg.reportInterval, ctx: ctx, payloadChan: payloadChan,
+		stopChan: stopChan, cl: cl, serverAddress: cfg.serverAddress, signKey: []byte(cfg.key), publicKey: publicKey}
 
 	go collectOSWorker.StartCollecting()
 	go collectChWorker.StartCollecting()
