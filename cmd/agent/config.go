@@ -38,10 +38,9 @@ func (cfg *AgentConfig) check() error {
 	if cfg.reportInterval <= 0 {
 		err = append(err, ErrReportIntetrvalNegativ)
 	}
-	if cfg.СryptoKey != "" {
-		if _, errF := os.Stat(cfg.СryptoKey); os.IsNotExist(errF) {
-			err = append(err, fmt.Errorf("%w: %s", ErrCryptoKeyFileNotFound, cfg.СryptoKey))
-		}
+
+	if cfg.СryptoKey != "" && !fileExists(cfg.СryptoKey) {
+		err = append(err, fmt.Errorf("%w: %s", ErrCryptoKeyFileNotFound, cfg.СryptoKey))
 	}
 	return errors.Join(err...)
 }
@@ -140,4 +139,13 @@ func (cfg *AgentConfig) LoadFromFile(filePath string) error {
 	}
 
 	return nil
+}
+
+// fileExists проверяет, существует ли файл по указанному пути.
+func fileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }
