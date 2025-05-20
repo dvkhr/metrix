@@ -3,21 +3,19 @@ package retry
 
 import (
 	"context"
-	"crypto/rsa"
-	"net/http"
 	"time"
 
 	"github.com/dvkhr/metrix.git/internal/logging"
-	"github.com/dvkhr/metrix.git/internal/storage"
+	"github.com/dvkhr/metrix.git/internal/sender"
 )
 
-type SendFunc func(ctx context.Context, mStor storage.MemStorage, cl *http.Client, serverAddress string, signKey []byte, publicKey *rsa.PublicKey) error
+type SendFunc func(ctx context.Context, options sender.SendOptions) error
 
 func Retry(sendMetrics SendFunc, retries int) SendFunc {
-	return func(ctx context.Context, mStor storage.MemStorage, cl *http.Client, serverAddress string, signKey []byte, publicKey *rsa.PublicKey) error {
+	return func(ctx context.Context, options sender.SendOptions) error {
 		for r := 0; ; r++ {
 			nextAttemptAfter := time.Duration(2*r+1) * time.Second
-			err := sendMetrics(ctx, mStor, cl, serverAddress, signKey, publicKey)
+			err := sendMetrics(ctx, options)
 			if err == nil || r >= retries {
 				return err
 			}

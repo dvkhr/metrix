@@ -19,11 +19,20 @@ import (
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
-func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client, serverAddress string, signKey []byte, publicKey *rsa.PublicKey) error {
+// SendOptions содержит параметры для отправки метрик.
+type SendOptions struct {
+	MemStorage    storage.MemStorage
+	Client        *http.Client
+	ServerAddress string
+	SignKey       []byte
+	PublicKey     *rsa.PublicKey
+}
+
+func SendMetrics(ctx context.Context, options SendOptions) error {
 
 	logging.Logg.Info("+++Send metrics to server+++\n")
 
-	allMetrics, err := mStor.ListSlice(ctx)
+	allMetrics, err := options.MemStorage.ListSlice(ctx)
 	if err == nil && len(allMetrics) > 0 {
 		jsonMetric, err := json.Marshal(allMetrics)
 		if err != nil {
@@ -31,8 +40,8 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 		}
 
 		var encryptedData string
-		if publicKey != nil {
-			encryptedData, err = crypto.EncryptData(jsonMetric, publicKey)
+		if options.PublicKey != nil {
+			encryptedData, err = crypto.EncryptData(jsonMetric, options.PublicKey)
 			if err != nil {
 				logging.Logg.Error("Failed to encrypt data: %v", err)
 				return err
@@ -47,15 +56,15 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 		gz.Write([]byte(encryptedData))
 		gz.Close()
 
-		req, err := http.NewRequest("POST", buildAllMetricsURL(serverAddress), &requestBody)
+		req, err := http.NewRequest("POST", buildAllMetricsURL(options.ServerAddress), &requestBody)
 		if err != nil {
 			fmt.Println(err)
 		}
 
-		if len(signKey) > 0 {
+		if len(options.SignKey) > 0 {
 			signBuf := jsonMetric
 			signBuf = append(signBuf, ',')
-			signBuf = append(signBuf, signKey...)
+			signBuf = append(signBuf, options.SignKey...)
 			sign := sha256.Sum256(signBuf)
 			req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
 		}
@@ -63,7 +72,7 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Accept-Encoding", "gzip")
 		req.Header.Set("Content-Encoding", "gzip")
-		resp, err := cl.Do(req)
+		resp, err := options.Client.Do(req)
 		if err == nil {
 			fmt.Println(resp.StatusCode)
 			defer resp.Body.Close()
@@ -87,7 +96,7 @@ func SendMetrics(ctx context.Context, mStor storage.MemStorage, cl *http.Client,
 		} else {
 			return err
 		}
-		mStor.NewStorage()
+		options.MemStorage.NewStorage()
 	}
 	return nil
 }
