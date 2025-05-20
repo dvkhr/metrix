@@ -107,13 +107,18 @@ func (ms *MetricsServer) NotfoundMetricRq(res http.ResponseWriter, req *http.Req
 	http.Error(res, "Metric not found!", http.StatusNotFound)
 }
 
-func (ms *MetricsServer) checkRequestMethod(req *http.Request) error {
+// checkPostMethod проверяет, является ли HTTP-метод запроса POST.
+// Если метод отличается от POST, возвращается ошибка.
+func (ms *MetricsServer) checkPostMethod(req *http.Request) error {
 	if req.Method != http.MethodPost {
 		return fmt.Errorf("only POST requests are allowed")
 	}
 	return nil
 }
 
+// readRequestBody читает тело HTTP-запроса и возвращает его в виде массива байтов.
+// Если возникает ошибка при чтении тела запроса, она возвращается.
+// После чтения тело запроса закрывается.
 func (ms *MetricsServer) readRequestBody(req *http.Request) ([]byte, error) {
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
@@ -123,6 +128,9 @@ func (ms *MetricsServer) readRequestBody(req *http.Request) ([]byte, error) {
 	return body, nil
 }
 
+// loadPrivateKey загружает приватный ключ из файла, указанного в конфигурации.
+// Если путь к ключу не указан, возвращается nil.
+// В случае ошибки чтения ключа возвращается соответствующая ошибка.
 func (ms *MetricsServer) loadPrivateKey() (*rsa.PrivateKey, error) {
 	if ms.Config.CryptoKey == "" {
 		return nil, nil
@@ -135,6 +143,9 @@ func (ms *MetricsServer) loadPrivateKey() (*rsa.PrivateKey, error) {
 	return privateKey, nil
 }
 
+// decryptData расшифровывает данные с использованием предоставленного приватного ключа.
+// Если ключ отсутствует, возвращаются исходные данные без изменений.
+// В случае ошибки расшифровки возвращается соответствующая ошибка.
 func (ms *MetricsServer) decryptData(data []byte, privateKey *rsa.PrivateKey) ([]byte, error) {
 	if privateKey == nil {
 		return data, nil
@@ -145,6 +156,10 @@ func (ms *MetricsServer) decryptData(data []byte, privateKey *rsa.PrivateKey) ([
 	}
 	return decryptedData, nil
 }
+
+// parseMetrics десериализует JSON-данные в массив метрик.
+// Если данные не могут быть преобразованы в формат []service.Metrics,
+// возвращается соответствующая ошибка.
 func (ms *MetricsServer) parseMetrics(data []byte) ([]service.Metrics, error) {
 	var metrics []service.Metrics
 	if err := json.Unmarshal(data, &metrics); err != nil {
@@ -152,12 +167,18 @@ func (ms *MetricsServer) parseMetrics(data []byte) ([]service.Metrics, error) {
 	}
 	return metrics, nil
 }
+
+// saveMetrics сохраняет массив метрик в хранилище.
+// Если сохранение завершается ошибкой, она возвращается.
 func (ms *MetricsServer) saveMetrics(ctx context.Context, metrics []service.Metrics) error {
 	if err := ms.MetricStorage.SaveAll(ctx, &metrics); err != nil {
 		return fmt.Errorf("failed to save metrics: %w", err)
 	}
 	return nil
 }
+
+// getAllMetrics получает все метрики из хранилища в виде карты (map[string]service.Metrics).
+// Если возникает ошибка при получении данных, она возвращается.
 func (ms *MetricsServer) getAllMetrics(ctx context.Context) (*map[string]service.Metrics, error) {
 	allMetrics, err := ms.MetricStorage.List(ctx)
 	if err != nil {
@@ -166,6 +187,14 @@ func (ms *MetricsServer) getAllMetrics(ctx context.Context) (*map[string]service
 	return allMetrics, nil
 }
 
+// prepareResponse подготавливает ответ клиенту:
+// 1. Преобразует метрики в формат JSON.
+// 2. Генерирует хэш SHA-256 на основе JSON-данных и ключа (если ключ предоставлен).
+//
+// Возвращает:
+// - Сериализованные данные метрик.
+// - Хэш (если ключ предоставлен).
+// - Ошибку, если что-то пошло не так.
 func (ms *MetricsServer) prepareResponse(metrics *map[string]service.Metrics, key string) ([]byte, string, error) {
 	// Преобразование данных в JSON
 	bufResp, err := json.Marshal(metrics)

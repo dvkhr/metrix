@@ -259,7 +259,7 @@ func TestUpdateBatch(t *testing.T) {
 		assert.Equal(t, http.StatusMethodNotAllowed, res.Code)
 
 		body := res.Body.String()
-		assert.Contains(t, body, "Only POST requests are allowed!")
+		assert.Contains(t, body, "only POST requests are allowed")
 	})
 
 	t.Run("Invalid JSON Body", func(t *testing.T) {

@@ -304,7 +304,7 @@ func (ms *MetricsServer) UpdateBatch(res http.ResponseWriter, req *http.Request)
 
 	res.Header().Set("Content-Type", "application/json")
 
-	if err := ms.checkRequestMethod(req); err != nil {
+	if err := ms.checkPostMethod(req); err != nil {
 		http.Error(res, err.Error(), http.StatusMethodNotAllowed)
 		return
 	}
