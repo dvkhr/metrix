@@ -36,7 +36,8 @@ func HandleRequestWithTrustedSubnet(trustedSubnet string, next http.Handler) htt
 		logging.Logg.Debug("trustedSubnet", "ip", trustedSubnet)
 
 		if clientIP == "" {
-			http.Error(w, "X-Real-IP header is missing", http.StatusBadRequest)
+			logging.Logg.Debug("X-Real-IP header is missing, skipping trusted subnet check")
+			next.ServeHTTP(w, r)
 			return
 		}
 
