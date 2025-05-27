@@ -56,6 +56,7 @@ func init() {
 		os.Exit(1)
 	}
 
+	logConfiguration(cfg)
 	MetricServer, err = handlers.NewMetricsServer(cfg)
 	if err != nil {
 		logging.Logg.Error("Unable to initialize storage: %v", err)
@@ -72,6 +73,19 @@ func init() {
 		WriteTimeout: 15 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
+}
+
+func logConfiguration(cfg config.ConfigServ) {
+	logging.Logg.Info("Configuration loaded:\n" +
+		"  Address: " + cfg.Address + "\n" +
+		"  FileStoragePath: " + cfg.FileStoragePath + "\n" +
+		"  StoreInterval: " + cfg.StoreInterval.String() + "\n" +
+		"  DBDsn: " + cfg.DBDsn + "\n" +
+		"  Restore: " + fmt.Sprintf("%v", cfg.Restore) + "\n" +
+		"  Key: " + logging.MaskSensitiveData(cfg.Key) + "\n" +
+		"  CryptoKey: " + logging.MaskSensitiveData(cfg.CryptoKey) + "\n" +
+		"  TrustedSubnet: " + cfg.TrustedSubnet,
+	)
 }
 
 func main() {

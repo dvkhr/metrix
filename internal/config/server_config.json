@@ -5,5 +5,5 @@
     "store_file": "/path/to/file.db", 
     "database_dsn": "",
     "crypto_key": "/home/max/go/src/metrix/cmd/server/private_key.pem", 
-    "trusted_subnet": "10.0.1.0/24"
+     "trusted_subnet": "172.17.31.0/24"
 }

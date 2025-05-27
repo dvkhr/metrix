@@ -16,6 +16,7 @@ import (
 
 	"github.com/dvkhr/metrix.git/internal/crypto"
 	"github.com/dvkhr/metrix.git/internal/logging"
+	"github.com/dvkhr/metrix.git/internal/network"
 	"github.com/dvkhr/metrix.git/internal/storage"
 )
 
@@ -67,6 +68,12 @@ func SendMetrics(ctx context.Context, options SendOptions) error {
 			signBuf = append(signBuf, options.SignKey...)
 			sign := sha256.Sum256(signBuf)
 			req.Header.Set("HashSHA256", hex.EncodeToString(sign[:]))
+		}
+		clientIP, ipErr := network.GetOutboundIP()
+		if ipErr != nil {
+			logging.Logg.Warn("Failed to determine outbound IP: %v", ipErr)
+		} else {
+			req.Header.Set("X-Real-IP", clientIP)
 		}
 
 		req.Header.Set("Content-Type", "application/json")
