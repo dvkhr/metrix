@@ -7,6 +7,7 @@ import (
 	"github.com/dvkhr/metrix.git/internal/config"
 	"github.com/dvkhr/metrix.git/internal/gzip"
 	"github.com/dvkhr/metrix.git/internal/logging"
+	"github.com/dvkhr/metrix.git/internal/network"
 	"github.com/dvkhr/metrix.git/internal/sign"
 	"github.com/go-chi/chi/v5"
 )
@@ -61,7 +62,10 @@ func SetupRoutes(r *chi.Mux, logger *logging.Logger, cfg config.ConfigServ, metr
 	r.Get("/value/{type}/{name}", metricServer.HandleGetMetric)
 	r.Get("/ping", metricServer.CheckDBConnect)
 	r.Post("/value/", gzip.GzipMiddleware(metricServer.ExtractMetric))
-	r.Post("/updates/", gzip.GzipMiddleware(sign.SignCheck(metricServer.UpdateBatch, []byte(cfg.Key))))
+
+	r.Post("/updates/", network.HandleRequestWithTrustedSubnet(cfg.TrustedSubnet,
+		gzip.GzipMiddleware(sign.SignCheck(metricServer.UpdateBatch, []byte(cfg.Key)))))
+
 	r.Route("/update", func(r chi.Router) {
 		r.Post("/", gzip.GzipMiddleware(metricServer.UpdateMetric))
 		r.Post("/*", metricServer.IncorrectMetricRq)

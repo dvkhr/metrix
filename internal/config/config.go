@@ -20,6 +20,7 @@ type ConfigServ struct {
 	Restore         bool
 	Key             string
 	CryptoKey       string
+	TrustedSubnet   string
 }
 
 var (
@@ -62,6 +63,7 @@ func (cfg *ConfigServ) ParseFlags() error {
 	flag.StringVar(&cfg.CryptoKey, "crypto-key", "", "Path to the private key file for decryption (optional)")
 	flag.StringVar(&configFile, "c", "", "Path to the JSON configuration file")
 	flag.StringVar(&configFile, "config", "", "Path to the JSON configuration file")
+	flag.StringVar(&cfg.TrustedSubnet, "t", "", "Trusted subnet in CIDR format")
 
 	flag.Parse()
 
@@ -88,6 +90,9 @@ func (cfg *ConfigServ) ParseFlags() error {
 	cfg.StoreInterval = time.Duration(storInt) * time.Second
 	if envVarCryptoKey := os.Getenv("CRYPTO_KEY"); envVarCryptoKey != "" {
 		cfg.CryptoKey = envVarCryptoKey
+	}
+	if envVarTrustedSubnet := os.Getenv("TRUSTED_SUBNET"); envVarTrustedSubnet != "" && cfg.TrustedSubnet == "" {
+		cfg.TrustedSubnet = envVarTrustedSubnet
 	}
 
 	if configFileEnv := os.Getenv("CONFIG"); configFileEnv != "" && configFile == "" {
@@ -133,6 +138,7 @@ type ServerConfigFile struct {
 	StoreFile     string `json:"store_file"`
 	DatabaseDsn   string `json:"database_dsn"`
 	CryptoKey     string `json:"crypto_key"`
+	TrustedSubnet string `json:"trusted_subnet"`
 }
 
 // LoadServerConfig загружает конфигурацию сервера из JSON-файла.
@@ -167,6 +173,9 @@ func (cfg *ConfigServ) LoadServerConfig(filePath string) error {
 	}
 	if configFile.CryptoKey != "" && cfg.CryptoKey == "" {
 		cfg.CryptoKey = configFile.CryptoKey
+	}
+	if configFile.TrustedSubnet != "" && cfg.TrustedSubnet == "" {
+		cfg.TrustedSubnet = configFile.TrustedSubnet
 	}
 
 	return nil
