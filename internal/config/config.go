@@ -21,6 +21,7 @@ type ConfigServ struct {
 	Key             string
 	CryptoKey       string
 	TrustedSubnet   string
+	GRPCAddress     string
 }
 
 var (
@@ -64,6 +65,8 @@ func (cfg *ConfigServ) ParseFlags() error {
 	flag.StringVar(&configFile, "c", "", "Path to the JSON configuration file")
 	flag.StringVar(&configFile, "config", "", "Path to the JSON configuration file")
 	flag.StringVar(&cfg.TrustedSubnet, "t", "", "Trusted subnet in CIDR format")
+
+	flag.StringVar(&cfg.GRPCAddress, "grpc", "", "Endpoint gRPC-server")
 
 	flag.Parse()
 
