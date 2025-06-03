@@ -106,7 +106,7 @@ func calculateServerSignature(body []byte, signKey []byte) [32]byte {
 }
 
 // signData создает цифровую подпись данных с использованием ключа подписи.
-func signData(data []byte, signKey []byte) string {
+func SignData(data []byte, signKey []byte) string {
 	if len(signKey) == 0 {
 		return ""
 	}
