@@ -19,11 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MetricsService_SendMetric_FullMethodName     = "/metrics.MetricsService/SendMetric"
-	MetricsService_BatchUpdate_FullMethodName    = "/metrics.MetricsService/BatchUpdate"
-	MetricsService_GetMetric_FullMethodName      = "/metrics.MetricsService/GetMetric"
-	MetricsService_GetAllMetrics_FullMethodName  = "/metrics.MetricsService/GetAllMetrics"
-	MetricsService_CheckDBConnect_FullMethodName = "/metrics.MetricsService/CheckDBConnect"
+	MetricsService_BatchUpdate_FullMethodName = "/metrics.MetricsService/BatchUpdate"
 )
 
 // MetricsServiceClient is the client API for MetricsService service.
@@ -32,16 +28,8 @@ const (
 //
 // MetricsService предоставляет методы для работы с метриками.
 type MetricsServiceClient interface {
-	// SendMetric отправляет одну метрику.
-	SendMetric(ctx context.Context, in *MetricRequest, opts ...grpc.CallOption) (*MetricResponse, error)
 	// BatchUpdate отправляет пакет метрик.
-	BatchUpdate(ctx context.Context, in *BatchRequest, opts ...grpc.CallOption) (*BatchResponse, error)
-	// GetMetric получает значение метрики по её ID.
-	GetMetric(ctx context.Context, in *MetricRequest, opts ...grpc.CallOption) (*MetricResponse, error)
-	// GetAllMetrics получает все метрики.
-	GetAllMetrics(ctx context.Context, in *GetAllMetricsRequest, opts ...grpc.CallOption) (*GetAllMetricsResponse, error)
-	// CheckDBConnect проверяет подключение к базе данных.
-	CheckDBConnect(ctx context.Context, in *GetAllMetricsRequest, opts ...grpc.CallOption) (*MetricResponse, error)
+	BatchUpdate(ctx context.Context, in *BatchRequest, opts ...grpc.CallOption) (*MetricResponse, error)
 }
 
 type metricsServiceClient struct {
@@ -52,50 +40,10 @@ func NewMetricsServiceClient(cc grpc.ClientConnInterface) MetricsServiceClient {
 	return &metricsServiceClient{cc}
 }
 
-func (c *metricsServiceClient) SendMetric(ctx context.Context, in *MetricRequest, opts ...grpc.CallOption) (*MetricResponse, error) {
+func (c *metricsServiceClient) BatchUpdate(ctx context.Context, in *BatchRequest, opts ...grpc.CallOption) (*MetricResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MetricResponse)
-	err := c.cc.Invoke(ctx, MetricsService_SendMetric_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *metricsServiceClient) BatchUpdate(ctx context.Context, in *BatchRequest, opts ...grpc.CallOption) (*BatchResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BatchResponse)
 	err := c.cc.Invoke(ctx, MetricsService_BatchUpdate_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *metricsServiceClient) GetMetric(ctx context.Context, in *MetricRequest, opts ...grpc.CallOption) (*MetricResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MetricResponse)
-	err := c.cc.Invoke(ctx, MetricsService_GetMetric_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *metricsServiceClient) GetAllMetrics(ctx context.Context, in *GetAllMetricsRequest, opts ...grpc.CallOption) (*GetAllMetricsResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetAllMetricsResponse)
-	err := c.cc.Invoke(ctx, MetricsService_GetAllMetrics_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *metricsServiceClient) CheckDBConnect(ctx context.Context, in *GetAllMetricsRequest, opts ...grpc.CallOption) (*MetricResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(MetricResponse)
-	err := c.cc.Invoke(ctx, MetricsService_CheckDBConnect_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -108,16 +56,8 @@ func (c *metricsServiceClient) CheckDBConnect(ctx context.Context, in *GetAllMet
 //
 // MetricsService предоставляет методы для работы с метриками.
 type MetricsServiceServer interface {
-	// SendMetric отправляет одну метрику.
-	SendMetric(context.Context, *MetricRequest) (*MetricResponse, error)
 	// BatchUpdate отправляет пакет метрик.
-	BatchUpdate(context.Context, *BatchRequest) (*BatchResponse, error)
-	// GetMetric получает значение метрики по её ID.
-	GetMetric(context.Context, *MetricRequest) (*MetricResponse, error)
-	// GetAllMetrics получает все метрики.
-	GetAllMetrics(context.Context, *GetAllMetricsRequest) (*GetAllMetricsResponse, error)
-	// CheckDBConnect проверяет подключение к базе данных.
-	CheckDBConnect(context.Context, *GetAllMetricsRequest) (*MetricResponse, error)
+	BatchUpdate(context.Context, *BatchRequest) (*MetricResponse, error)
 	mustEmbedUnimplementedMetricsServiceServer()
 }
 
@@ -128,20 +68,8 @@ type MetricsServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedMetricsServiceServer struct{}
 
-func (UnimplementedMetricsServiceServer) SendMetric(context.Context, *MetricRequest) (*MetricResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendMetric not implemented")
-}
-func (UnimplementedMetricsServiceServer) BatchUpdate(context.Context, *BatchRequest) (*BatchResponse, error) {
+func (UnimplementedMetricsServiceServer) BatchUpdate(context.Context, *BatchRequest) (*MetricResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method BatchUpdate not implemented")
-}
-func (UnimplementedMetricsServiceServer) GetMetric(context.Context, *MetricRequest) (*MetricResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetMetric not implemented")
-}
-func (UnimplementedMetricsServiceServer) GetAllMetrics(context.Context, *GetAllMetricsRequest) (*GetAllMetricsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetAllMetrics not implemented")
-}
-func (UnimplementedMetricsServiceServer) CheckDBConnect(context.Context, *GetAllMetricsRequest) (*MetricResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CheckDBConnect not implemented")
 }
 func (UnimplementedMetricsServiceServer) mustEmbedUnimplementedMetricsServiceServer() {}
 func (UnimplementedMetricsServiceServer) testEmbeddedByValue()                        {}
@@ -164,24 +92,6 @@ func RegisterMetricsServiceServer(s grpc.ServiceRegistrar, srv MetricsServiceSer
 	s.RegisterService(&MetricsService_ServiceDesc, srv)
 }
 
-func _MetricsService_SendMetric_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MetricRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MetricsServiceServer).SendMetric(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MetricsService_SendMetric_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetricsServiceServer).SendMetric(ctx, req.(*MetricRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _MetricsService_BatchUpdate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BatchRequest)
 	if err := dec(in); err != nil {
@@ -200,60 +110,6 @@ func _MetricsService_BatchUpdate_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
-func _MetricsService_GetMetric_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(MetricRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MetricsServiceServer).GetMetric(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MetricsService_GetMetric_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetricsServiceServer).GetMetric(ctx, req.(*MetricRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _MetricsService_GetAllMetrics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAllMetricsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MetricsServiceServer).GetAllMetrics(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MetricsService_GetAllMetrics_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetricsServiceServer).GetAllMetrics(ctx, req.(*GetAllMetricsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _MetricsService_CheckDBConnect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetAllMetricsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(MetricsServiceServer).CheckDBConnect(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: MetricsService_CheckDBConnect_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(MetricsServiceServer).CheckDBConnect(ctx, req.(*GetAllMetricsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // MetricsService_ServiceDesc is the grpc.ServiceDesc for MetricsService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -262,24 +118,8 @@ var MetricsService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*MetricsServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "SendMetric",
-			Handler:    _MetricsService_SendMetric_Handler,
-		},
-		{
 			MethodName: "BatchUpdate",
 			Handler:    _MetricsService_BatchUpdate_Handler,
-		},
-		{
-			MethodName: "GetMetric",
-			Handler:    _MetricsService_GetMetric_Handler,
-		},
-		{
-			MethodName: "GetAllMetrics",
-			Handler:    _MetricsService_GetAllMetrics_Handler,
-		},
-		{
-			MethodName: "CheckDBConnect",
-			Handler:    _MetricsService_CheckDBConnect_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

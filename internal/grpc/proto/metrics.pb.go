@@ -25,8 +25,8 @@ const (
 type MetricType int32
 
 const (
-	MetricType_GAUGE   MetricType = 0
-	MetricType_COUNTER MetricType = 1
+	MetricType_GAUGE   MetricType = 0 // Мгновенное значение
+	MetricType_COUNTER MetricType = 1 // Накопительное значение
 )
 
 // Enum value maps for MetricType.
@@ -71,10 +71,11 @@ func (MetricType) EnumDescriptor() ([]byte, []int) {
 // MetricRequest представляет запрос на отправку метрики.
 type MetricRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type          MetricType             `protobuf:"varint,2,opt,name=type,proto3,enum=metrics.MetricType" json:"type,omitempty"`
-	Value         float64                `protobuf:"fixed64,3,opt,name=value,proto3" json:"value,omitempty"`
-	Delta         int64                  `protobuf:"varint,4,opt,name=delta,proto3" json:"delta,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                              // Уникальный идентификатор метрики
+	Type          MetricType             `protobuf:"varint,2,opt,name=type,proto3,enum=metrics.MetricType" json:"type,omitempty"` // Тип метрики
+	Value         float64                `protobuf:"fixed64,3,opt,name=value,proto3" json:"value,omitempty"`                      // Значение для gauge (необязательное)
+	Delta         int64                  `protobuf:"varint,4,opt,name=delta,proto3" json:"delta,omitempty"`                       // Значение для counter (необязательное)
+	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`                          // Зашифрованные данные (опционально)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -137,18 +138,78 @@ func (x *MetricRequest) GetDelta() int64 {
 	return 0
 }
 
+func (x *MetricRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+// BatchRequest представляет запрос на пакетную отправку метрик.
+type BatchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Metrics       []*MetricRequest       `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"` // Массив метрик
+	Hash          string                 `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`       // Хеш для подписи данных (опционально)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchRequest) Reset() {
+	*x = BatchRequest{}
+	mi := &file_proto_metrics_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchRequest) ProtoMessage() {}
+
+func (x *BatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_metrics_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchRequest.ProtoReflect.Descriptor instead.
+func (*BatchRequest) Descriptor() ([]byte, []int) {
+	return file_proto_metrics_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *BatchRequest) GetMetrics() []*MetricRequest {
+	if x != nil {
+		return x.Metrics
+	}
+	return nil
+}
+
+func (x *BatchRequest) GetHash() string {
+	if x != nil {
+		return x.Hash
+	}
+	return ""
+}
+
 // MetricResponse представляет ответ на запрос.
 type MetricResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"` // Успех операции
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`  // Сообщение об ошибке или успехе
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MetricResponse) Reset() {
 	*x = MetricResponse{}
-	mi := &file_proto_metrics_proto_msgTypes[1]
+	mi := &file_proto_metrics_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -160,7 +221,7 @@ func (x *MetricResponse) String() string {
 func (*MetricResponse) ProtoMessage() {}
 
 func (x *MetricResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_metrics_proto_msgTypes[1]
+	mi := &file_proto_metrics_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -173,7 +234,7 @@ func (x *MetricResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricResponse.ProtoReflect.Descriptor instead.
 func (*MetricResponse) Descriptor() ([]byte, []int) {
-	return file_proto_metrics_proto_rawDescGZIP(), []int{1}
+	return file_proto_metrics_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *MetricResponse) GetSuccess() bool {
@@ -190,227 +251,29 @@ func (x *MetricResponse) GetMessage() string {
 	return ""
 }
 
-// BatchRequest представляет запрос на пакетное обновление метрик.
-type BatchRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metrics       []*MetricRequest       `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BatchRequest) Reset() {
-	*x = BatchRequest{}
-	mi := &file_proto_metrics_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BatchRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BatchRequest) ProtoMessage() {}
-
-func (x *BatchRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_metrics_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BatchRequest.ProtoReflect.Descriptor instead.
-func (*BatchRequest) Descriptor() ([]byte, []int) {
-	return file_proto_metrics_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *BatchRequest) GetMetrics() []*MetricRequest {
-	if x != nil {
-		return x.Metrics
-	}
-	return nil
-}
-
-// BatchResponse представляет ответ на пакетное обновление метрик.
-type BatchResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
-	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	Metrics       []*MetricRequest       `protobuf:"bytes,3,rep,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BatchResponse) Reset() {
-	*x = BatchResponse{}
-	mi := &file_proto_metrics_proto_msgTypes[3]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BatchResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BatchResponse) ProtoMessage() {}
-
-func (x *BatchResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_metrics_proto_msgTypes[3]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BatchResponse.ProtoReflect.Descriptor instead.
-func (*BatchResponse) Descriptor() ([]byte, []int) {
-	return file_proto_metrics_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *BatchResponse) GetSuccess() bool {
-	if x != nil {
-		return x.Success
-	}
-	return false
-}
-
-func (x *BatchResponse) GetMessage() string {
-	if x != nil {
-		return x.Message
-	}
-	return ""
-}
-
-func (x *BatchResponse) GetMetrics() []*MetricRequest {
-	if x != nil {
-		return x.Metrics
-	}
-	return nil
-}
-
-// GetAllMetricsRequest представляет запрос на получение всех метрик.
-type GetAllMetricsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetAllMetricsRequest) Reset() {
-	*x = GetAllMetricsRequest{}
-	mi := &file_proto_metrics_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetAllMetricsRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetAllMetricsRequest) ProtoMessage() {}
-
-func (x *GetAllMetricsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_metrics_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetAllMetricsRequest.ProtoReflect.Descriptor instead.
-func (*GetAllMetricsRequest) Descriptor() ([]byte, []int) {
-	return file_proto_metrics_proto_rawDescGZIP(), []int{4}
-}
-
-// GetAllMetricsResponse представляет ответ с массивом всех метрик.
-type GetAllMetricsResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Metrics       []*MetricRequest       `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *GetAllMetricsResponse) Reset() {
-	*x = GetAllMetricsResponse{}
-	mi := &file_proto_metrics_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *GetAllMetricsResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*GetAllMetricsResponse) ProtoMessage() {}
-
-func (x *GetAllMetricsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_metrics_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use GetAllMetricsResponse.ProtoReflect.Descriptor instead.
-func (*GetAllMetricsResponse) Descriptor() ([]byte, []int) {
-	return file_proto_metrics_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *GetAllMetricsResponse) GetMetrics() []*MetricRequest {
-	if x != nil {
-		return x.Metrics
-	}
-	return nil
-}
-
 var File_proto_metrics_proto protoreflect.FileDescriptor
 
 const file_proto_metrics_proto_rawDesc = "" +
 	"\n" +
-	"\x13proto/metrics.proto\x12\ametrics\"t\n" +
+	"\x13proto/metrics.proto\x12\ametrics\"\x88\x01\n" +
 	"\rMetricRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12'\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x13.metrics.MetricTypeR\x04type\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\x01R\x05value\x12\x14\n" +
-	"\x05delta\x18\x04 \x01(\x03R\x05delta\"D\n" +
+	"\x05delta\x18\x04 \x01(\x03R\x05delta\x12\x12\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"T\n" +
+	"\fBatchRequest\x120\n" +
+	"\ametrics\x18\x01 \x03(\v2\x16.metrics.MetricRequestR\ametrics\x12\x12\n" +
+	"\x04hash\x18\x02 \x01(\tR\x04hash\"D\n" +
 	"\x0eMetricResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\"@\n" +
-	"\fBatchRequest\x120\n" +
-	"\ametrics\x18\x01 \x03(\v2\x16.metrics.MetricRequestR\ametrics\"u\n" +
-	"\rBatchResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage\x120\n" +
-	"\ametrics\x18\x03 \x03(\v2\x16.metrics.MetricRequestR\ametrics\"\x16\n" +
-	"\x14GetAllMetricsRequest\"I\n" +
-	"\x15GetAllMetricsResponse\x120\n" +
-	"\ametrics\x18\x01 \x03(\v2\x16.metrics.MetricRequestR\ametrics*$\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage*$\n" +
 	"\n" +
 	"MetricType\x12\t\n" +
 	"\x05GAUGE\x10\x00\x12\v\n" +
-	"\aCOUNTER\x10\x012\xe5\x02\n" +
+	"\aCOUNTER\x10\x012O\n" +
 	"\x0eMetricsService\x12=\n" +
-	"\n" +
-	"SendMetric\x12\x16.metrics.MetricRequest\x1a\x17.metrics.MetricResponse\x12<\n" +
-	"\vBatchUpdate\x12\x15.metrics.BatchRequest\x1a\x16.metrics.BatchResponse\x12<\n" +
-	"\tGetMetric\x12\x16.metrics.MetricRequest\x1a\x17.metrics.MetricResponse\x12N\n" +
-	"\rGetAllMetrics\x12\x1d.metrics.GetAllMetricsRequest\x1a\x1e.metrics.GetAllMetricsResponse\x12H\n" +
-	"\x0eCheckDBConnect\x12\x1d.metrics.GetAllMetricsRequest\x1a\x17.metrics.MetricResponseB+Z)github.com/dvkhr/metrix.git/internal/grpcb\x06proto3"
+	"\vBatchUpdate\x12\x15.metrics.BatchRequest\x1a\x17.metrics.MetricResponseB+Z)github.com/dvkhr/metrix.git/internal/grpcb\x06proto3"
 
 var (
 	file_proto_metrics_proto_rawDescOnce sync.Once
@@ -425,36 +288,23 @@ func file_proto_metrics_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_proto_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_proto_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_proto_metrics_proto_goTypes = []any{
-	(MetricType)(0),               // 0: metrics.MetricType
-	(*MetricRequest)(nil),         // 1: metrics.MetricRequest
-	(*MetricResponse)(nil),        // 2: metrics.MetricResponse
-	(*BatchRequest)(nil),          // 3: metrics.BatchRequest
-	(*BatchResponse)(nil),         // 4: metrics.BatchResponse
-	(*GetAllMetricsRequest)(nil),  // 5: metrics.GetAllMetricsRequest
-	(*GetAllMetricsResponse)(nil), // 6: metrics.GetAllMetricsResponse
+	(MetricType)(0),        // 0: metrics.MetricType
+	(*MetricRequest)(nil),  // 1: metrics.MetricRequest
+	(*BatchRequest)(nil),   // 2: metrics.BatchRequest
+	(*MetricResponse)(nil), // 3: metrics.MetricResponse
 }
 var file_proto_metrics_proto_depIdxs = []int32{
 	0, // 0: metrics.MetricRequest.type:type_name -> metrics.MetricType
 	1, // 1: metrics.BatchRequest.metrics:type_name -> metrics.MetricRequest
-	1, // 2: metrics.BatchResponse.metrics:type_name -> metrics.MetricRequest
-	1, // 3: metrics.GetAllMetricsResponse.metrics:type_name -> metrics.MetricRequest
-	1, // 4: metrics.MetricsService.SendMetric:input_type -> metrics.MetricRequest
-	3, // 5: metrics.MetricsService.BatchUpdate:input_type -> metrics.BatchRequest
-	1, // 6: metrics.MetricsService.GetMetric:input_type -> metrics.MetricRequest
-	5, // 7: metrics.MetricsService.GetAllMetrics:input_type -> metrics.GetAllMetricsRequest
-	5, // 8: metrics.MetricsService.CheckDBConnect:input_type -> metrics.GetAllMetricsRequest
-	2, // 9: metrics.MetricsService.SendMetric:output_type -> metrics.MetricResponse
-	4, // 10: metrics.MetricsService.BatchUpdate:output_type -> metrics.BatchResponse
-	2, // 11: metrics.MetricsService.GetMetric:output_type -> metrics.MetricResponse
-	6, // 12: metrics.MetricsService.GetAllMetrics:output_type -> metrics.GetAllMetricsResponse
-	2, // 13: metrics.MetricsService.CheckDBConnect:output_type -> metrics.MetricResponse
-	9, // [9:14] is the sub-list for method output_type
-	4, // [4:9] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	2, // 2: metrics.MetricsService.BatchUpdate:input_type -> metrics.BatchRequest
+	3, // 3: metrics.MetricsService.BatchUpdate:output_type -> metrics.MetricResponse
+	3, // [3:4] is the sub-list for method output_type
+	2, // [2:3] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_proto_metrics_proto_init() }
@@ -468,7 +318,7 @@ func file_proto_metrics_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_metrics_proto_rawDesc), len(file_proto_metrics_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   6,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
