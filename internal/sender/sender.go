@@ -15,6 +15,7 @@ import (
 	"net/url"
 
 	"github.com/dvkhr/metrix.git/internal/crypto"
+	pb "github.com/dvkhr/metrix.git/internal/grpc/proto"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/network"
 	"github.com/dvkhr/metrix.git/internal/storage"
@@ -24,9 +25,11 @@ import (
 type SendOptions struct {
 	MemStorage    storage.MemStorage
 	Client        *http.Client
+	GRPCClient    pb.MetricsServiceClient
 	ServerAddress string
 	SignKey       []byte
 	PublicKey     *rsa.PublicKey
+	UseGRPC       bool
 }
 
 func SendMetrics(ctx context.Context, options SendOptions) error {

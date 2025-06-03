@@ -2,53 +2,61 @@ package grpcserver
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 
 	pb "github.com/dvkhr/metrix.git/internal/grpc/proto"
+
 	"github.com/dvkhr/metrix.git/internal/service"
 )
 
-// MetricsServer представляет реализацию gRPC-сервера для работы с метриками.
 type MetricsServer struct {
 	pb.UnimplementedMetricsServiceServer
 	MetricStorage service.MetricStorage
+	SignKey       []byte
 }
 
-// SendMetric обрабатывает gRPC-запрос на отправку одной метрики.
-//
-// Метод принимает метрику в формате MetricRequest, проверяет её корректность,
-// сохраняет в хранилище и возвращает результат операции в виде MetricResponse.
-//
-// Параметры:
-// - ctx: Контекст для управления жизненным циклом запроса.
-// - req: Запрос, содержащий данные метрики (идентификатор, тип, значение или дельту).
-//
-// Возвращаемые значения:
-// - *pb.MetricResponse: Ответ, содержащий статус операции и сообщение.
-// - error: Ошибка, если произошла проблема при обработке запроса.
-func (s *MetricsServer) SendMetric(ctx context.Context, req *pb.MetricRequest) (*pb.MetricResponse, error) {
-
-	mTemp := &service.Metrics{
-		ID:    req.Id,
-		MType: service.MetricType(req.Type),
-	}
-	if req.Type == pb.MetricType_GAUGE {
-		value := service.GaugeMetricValue(req.Value)
-		mTemp.Value = &value
-	} else if req.Type == pb.MetricType_COUNTER {
-		delta := service.CounterMetricValue(req.Delta)
-		mTemp.Delta = &delta
+// BatchUpdate обрабатывает пакетную отправку метрик.
+func (s *MetricsServer) BatchUpdate(ctx context.Context, req *pb.BatchRequest) (*pb.MetricResponse, error) {
+	if len(s.SignKey) > 0 && req.Hash != "" {
+		var jsonData []byte
+		for _, metric := range req.Metrics {
+			jsonData = append(jsonData, []byte(fmt.Sprintf(`{"id":"%s","type":%d,"value":%v,"delta":%v}`, metric.Id, metric.Type, metric.Value, metric.Delta))...)
+		}
+		jsonData = append(jsonData, s.SignKey...)
+		hash := sha256.Sum256(jsonData)
+		if hex.EncodeToString(hash[:]) != req.Hash {
+			return &pb.MetricResponse{
+				Success: false,
+				Message: "Invalid hash signature",
+			}, nil
+		}
 	}
 
-	if err := s.MetricStorage.Save(ctx, *mTemp); err != nil {
-		return &pb.MetricResponse{
-			Success: false,
-			Message: fmt.Sprintf("Failed to save metric: %v", err),
-		}, nil
+	for _, metric := range req.Metrics {
+		mTemp := &service.Metrics{
+			ID:    metric.Id,
+			MType: service.MetricType(metric.Type),
+		}
+		if metric.Type == pb.MetricType_GAUGE {
+			value := service.GaugeMetricValue(metric.Value)
+			mTemp.Value = &value
+		} else if metric.Type == pb.MetricType_COUNTER {
+			delta := service.CounterMetricValue(metric.Delta)
+			mTemp.Delta = &delta
+		}
+
+		if err := s.MetricStorage.Save(ctx, *mTemp); err != nil {
+			return &pb.MetricResponse{
+				Success: false,
+				Message: fmt.Sprintf("Failed to save metric %s: %v", metric.Id, err),
+			}, nil
+		}
 	}
 
 	return &pb.MetricResponse{
 		Success: true,
-		Message: "Metric saved successfully",
+		Message: "Batch update successful",
 	}, nil
 }

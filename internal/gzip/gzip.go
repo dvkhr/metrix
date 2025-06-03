@@ -3,7 +3,9 @@
 package gzip
 
 import (
+	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -98,4 +100,21 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 		}
 		h.ServeHTTP(ow, r)
 	})
+}
+
+// compressData сжимает данные с использованием gzip.
+func compressData(data []byte) ([]byte, error) {
+	var buffer bytes.Buffer
+
+	gz := gzip.NewWriter(&buffer)
+	if _, err := gz.Write(data); err != nil {
+		gz.Close()
+		return nil, fmt.Errorf("compression failed: %w", err)
+	}
+
+	if err := gz.Close(); err != nil {
+		return nil, fmt.Errorf("compression failed: %w", err)
+	}
+
+	return buffer.Bytes(), nil
 }

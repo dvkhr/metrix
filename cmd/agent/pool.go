@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	pb "github.com/dvkhr/metrix.git/internal/grpc/proto"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/retry"
 	"github.com/dvkhr/metrix.git/internal/sender"
@@ -41,16 +42,19 @@ func (cw *CollectWorker) StartCollecting() {
 
 type SendWorker struct {
 	mtx           sync.Mutex
-	wf            retry.SendFunc
+	wfHTTP        retry.SendFunc
+	wfGRPC        retry.SendFunc
 	poll          int64
 	ctx           context.Context
 	payloadChan   chan service.Metrics
 	stopChan      chan bool
 	cl            *http.Client
+	grpcClient    pb.MetricsServiceClient
 	mStor         storage.MemStorage
 	serverAddress string
 	signKey       []byte
 	publicKey     *rsa.PublicKey
+	useGRPC       bool
 }
 
 func (sw *SendWorker) Run() {
@@ -70,7 +74,7 @@ func (sw *SendWorker) Run() {
 				PublicKey:     sw.publicKey,
 			}
 
-			r := retry.Retry(sw.wf, 3)
+			r := retry.Retry(sw.wfHTTP, 3)
 			err := r(sw.ctx, options)
 			if err != nil {
 				logging.Logg.Error("Send worker error", "error", err)

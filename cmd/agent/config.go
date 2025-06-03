@@ -9,10 +9,15 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	pb "github.com/dvkhr/metrix.git/internal/grpc/proto"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type AgentConfig struct {
 	serverAddress  string
+	grpcAddress    string
 	reportInterval int64
 	pollInterval   int64
 	key            string
@@ -29,7 +34,7 @@ var (
 
 func (cfg *AgentConfig) check() error {
 	var err []error
-	if cfg.serverAddress == "" {
+	if cfg.serverAddress == "" && cfg.grpcAddress == "" {
 		err = append(err, ErrAddressEmpty)
 	}
 	if cfg.pollInterval <= 0 {
@@ -56,6 +61,7 @@ func (cfg *AgentConfig) parseFlags() error {
 	flag.StringVar(&cfg.СryptoKey, "crypto-key", "", "Path to the public key file for encryption")
 	flag.StringVar(&configFile, "c", "", "Path to the JSON configuration file")
 	flag.StringVar(&configFile, "config", "", "Path to the JSON configuration file")
+	flag.StringVar(&cfg.grpcAddress, "grpc", "", "Endpoint gRPC-server")
 
 	flag.Parse()
 
@@ -91,6 +97,8 @@ func (cfg *AgentConfig) parseFlags() error {
 
 	return cfg.check()
 }
+
+// newHTTPClient создает и возвращает HTTP-клиент с настройками таймаута и ограничениями для соединений.
 func newHTTPClient() *http.Client {
 	return &http.Client{
 		Timeout: 5 * time.Second,
@@ -101,11 +109,36 @@ func newHTTPClient() *http.Client {
 	}
 }
 
+// newGRPCClient создает и возвращает gRPC-клиент для взаимодействия с сервером.
+func newGRPCClient(serverAddress string) (pb.MetricsServiceClient, error) {
+	var conn *grpc.ClientConn
+	var err error
+
+	// Попытки подключения с задержкой между ними
+	for i := 0; i < 3; i++ { // Максимум 3 попытки
+		conn, err = grpc.NewClient(
+			serverAddress,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+		)
+		if err == nil {
+			break // Успешное подключение
+		}
+		time.Sleep(1 * time.Second) // Пауза перед следующей попыткой
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to gRPC server after retries: %w", err)
+	}
+
+	return pb.NewMetricsServiceClient(conn), nil
+}
+
 type ConfigFile struct {
 	Address        string `json:"address"`
 	ReportInterval string `json:"report_interval"`
 	PollInterval   string `json:"poll_interval"`
 	CryptoKey      string `json:"crypto_key"`
+	GRPCAddress    string `json:"grpc_address"`
 }
 
 func (cfg *AgentConfig) LoadFromFile(filePath string) error {
@@ -136,6 +169,10 @@ func (cfg *AgentConfig) LoadFromFile(filePath string) error {
 	}
 	if configFile.CryptoKey != "" && cfg.СryptoKey == "" {
 		cfg.СryptoKey = configFile.CryptoKey
+	}
+
+	if configFile.GRPCAddress != "" && cfg.grpcAddress == "" {
+		cfg.grpcAddress = configFile.GRPCAddress
 	}
 
 	return nil
