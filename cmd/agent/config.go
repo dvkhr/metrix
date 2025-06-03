@@ -5,14 +5,9 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
-
-	pb "github.com/dvkhr/metrix.git/internal/grpc/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 )
 
 type AgentConfig struct {
@@ -96,41 +91,6 @@ func (cfg *AgentConfig) parseFlags() error {
 	}
 
 	return cfg.check()
-}
-
-// newHTTPClient создает и возвращает HTTP-клиент с настройками таймаута и ограничениями для соединений.
-func newHTTPClient() *http.Client {
-	return &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			MaxIdleConns:    10,
-			IdleConnTimeout: 30 * time.Second,
-		},
-	}
-}
-
-// newGRPCClient создает и возвращает gRPC-клиент для взаимодействия с сервером.
-func newGRPCClient(serverAddress string) (pb.MetricsServiceClient, error) {
-	var conn *grpc.ClientConn
-	var err error
-
-	// Попытки подключения с задержкой между ними
-	for i := 0; i < 3; i++ { // Максимум 3 попытки
-		conn, err = grpc.NewClient(
-			serverAddress,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
-		if err == nil {
-			break // Успешное подключение
-		}
-		time.Sleep(1 * time.Second) // Пауза перед следующей попыткой
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to gRPC server after retries: %w", err)
-	}
-
-	return pb.NewMetricsServiceClient(conn), nil
 }
 
 type ConfigFile struct {

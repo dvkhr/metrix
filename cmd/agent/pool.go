@@ -3,11 +3,9 @@ package main
 import (
 	"context"
 	"crypto/rsa"
-	"net/http"
 	"sync"
 	"time"
 
-	pb "github.com/dvkhr/metrix.git/internal/grpc/proto"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/retry"
 	"github.com/dvkhr/metrix.git/internal/sender"
@@ -41,20 +39,16 @@ func (cw *CollectWorker) StartCollecting() {
 }
 
 type SendWorker struct {
-	mtx           sync.Mutex
-	wfHTTP        retry.SendFunc
-	wfGRPC        retry.SendFunc
-	poll          int64
-	ctx           context.Context
-	payloadChan   chan service.Metrics
-	stopChan      chan bool
-	cl            *http.Client
-	grpcClient    pb.MetricsServiceClient
-	mStor         storage.MemStorage
-	serverAddress string
-	signKey       []byte
-	publicKey     *rsa.PublicKey
-	useGRPC       bool
+	mtx         sync.Mutex
+	wf          retry.SendFunc
+	poll        int64
+	ctx         context.Context
+	payloadChan chan service.Metrics
+	stopChan    chan bool
+	mStor       storage.MemStorage
+	signKey     []byte
+	publicKey   *rsa.PublicKey
+	strategy    sender.Strategy
 }
 
 func (sw *SendWorker) Run() {
@@ -67,15 +61,13 @@ func (sw *SendWorker) Run() {
 			sw.mtx.Lock()
 
 			options := sender.SendOptions{
-				MemStorage:    sw.mStor,
-				Client:        sw.cl,
-				ServerAddress: sw.serverAddress,
-				SignKey:       sw.signKey,
-				PublicKey:     sw.publicKey,
+				MemStorage: sw.mStor,
+				SignKey:    sw.signKey,
+				PublicKey:  sw.publicKey,
 			}
 
-			r := retry.Retry(sw.wfHTTP, 3)
-			err := r(sw.ctx, options)
+			r := retry.Retry(sw.wf, 3)
+			err := r(sw.ctx, sw.strategy, options)
 			if err != nil {
 				logging.Logg.Error("Send worker error", "error", err)
 			}

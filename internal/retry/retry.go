@@ -9,13 +9,13 @@ import (
 	"github.com/dvkhr/metrix.git/internal/sender"
 )
 
-type SendFunc func(ctx context.Context, options sender.SendOptions) error
+type SendFunc func(ctx context.Context, sender sender.Strategy, options sender.SendOptions) error
 
 func Retry(sendMetrics SendFunc, retries int) SendFunc {
-	return func(ctx context.Context, options sender.SendOptions) error {
+	return func(ctx context.Context, sender sender.Strategy, options sender.SendOptions) error {
 		for r := 0; ; r++ {
 			nextAttemptAfter := time.Duration(2*r+1) * time.Second
-			err := sendMetrics(ctx, options)
+			err := sendMetrics(ctx, sender, options)
 			if err == nil || r >= retries {
 				return err
 			}

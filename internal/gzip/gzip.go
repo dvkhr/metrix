@@ -103,7 +103,7 @@ func GzipMiddleware(h http.HandlerFunc) http.HandlerFunc {
 }
 
 // compressData сжимает данные с использованием gzip.
-func compressData(data []byte) ([]byte, error) {
+func CompressData(data []byte) ([]byte, error) {
 	var buffer bytes.Buffer
 
 	gz := gzip.NewWriter(&buffer)
@@ -117,4 +117,9 @@ func compressData(data []byte) ([]byte, error) {
 	}
 
 	return buffer.Bytes(), nil
+}
+
+// NewGzipReader создает новый gzip.Reader для распаковки данных.
+func NewGzipReader(r io.Reader) (*gzip.Reader, error) {
+	return gzip.NewReader(r)
 }

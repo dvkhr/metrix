@@ -150,6 +150,7 @@ type BatchRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Metrics       []*MetricRequest       `protobuf:"bytes,1,rep,name=metrics,proto3" json:"metrics,omitempty"` // Массив метрик
 	Hash          string                 `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`       // Хеш для подписи данных (опционально)
+	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`       // Зашифрованные и заархивированные данные
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -196,6 +197,13 @@ func (x *BatchRequest) GetHash() string {
 		return x.Hash
 	}
 	return ""
+}
+
+func (x *BatchRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
 }
 
 // MetricResponse представляет ответ на запрос.
@@ -261,10 +269,11 @@ const file_proto_metrics_proto_rawDesc = "" +
 	"\x04type\x18\x02 \x01(\x0e2\x13.metrics.MetricTypeR\x04type\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\x01R\x05value\x12\x14\n" +
 	"\x05delta\x18\x04 \x01(\x03R\x05delta\x12\x12\n" +
-	"\x04data\x18\x05 \x01(\fR\x04data\"T\n" +
+	"\x04data\x18\x05 \x01(\fR\x04data\"h\n" +
 	"\fBatchRequest\x120\n" +
 	"\ametrics\x18\x01 \x03(\v2\x16.metrics.MetricRequestR\ametrics\x12\x12\n" +
-	"\x04hash\x18\x02 \x01(\tR\x04hash\"D\n" +
+	"\x04hash\x18\x02 \x01(\tR\x04hash\x12\x12\n" +
+	"\x04data\x18\x03 \x01(\fR\x04data\"D\n" +
 	"\x0eMetricResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage*$\n" +
