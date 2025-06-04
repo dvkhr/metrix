@@ -28,7 +28,7 @@ func (s *MetricsServer) BatchUpdate(ctx context.Context, req *pb.BatchRequest) (
 
 		var jsonData []byte
 		for _, metric := range req.Metrics {
-			jsonData = append(jsonData, []byte(fmt.Sprintf(`{"id":"%s","type":%d,"value":%v,"delta":%v}`, metric.Id, metric.Type, metric.Value, metric.Delta))...)
+			jsonData = append(jsonData, []byte(fmt.Sprintf(`{"id":"%s","type":%s,"value":%v,"delta":%v}`, metric.Id, metric.Type, metric.Value, metric.Delta))...)
 		}
 		jsonData = append(jsonData, s.SignKey...)
 		hash := sha256.Sum256(jsonData)
