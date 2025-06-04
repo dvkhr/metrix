@@ -67,9 +67,6 @@ func Facade(ctx context.Context, sender Strategy, options SendOptions) error {
 
 	signature := sign.SignData(jsonMetric, options.SignKey)
 
-	logging.Logg.Debug("Sending compressed data: %x", compressedData)
-	logging.Logg.Debug("Signature: %s", signature)
-
 	options.MemStorage.NewStorage()
 	return sender.Send(ctx, compressedData, signature)
 

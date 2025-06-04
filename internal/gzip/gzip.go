@@ -123,3 +123,14 @@ func CompressData(data []byte) ([]byte, error) {
 func NewGzipReader(r io.Reader) (*gzip.Reader, error) {
 	return gzip.NewReader(r)
 }
+
+// DecompressData распаковывает данные, сжатые с использованием GZIP.
+func DecompressData(compressedData []byte) ([]byte, error) {
+	reader, err := gzip.NewReader(bytes.NewReader(compressedData))
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	return io.ReadAll(reader)
+
+}

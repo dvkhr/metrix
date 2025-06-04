@@ -52,7 +52,8 @@ func (ssg *SendStrategyGRPC) Send(ctx context.Context, compressedData []byte, si
 		Data: compressedData,
 		Hash: signature,
 	}
-
+	message := fmt.Sprintf("Sending batch request with data length: %d, hash: %s", len(compressedData), signature)
+	logging.Logg.Info(message)
 	resp, err := ssg.client.BatchUpdate(ctx, batch)
 	if err != nil {
 		return fmt.Errorf("failed to send batch via gRPC: %w", err)

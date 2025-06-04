@@ -21,61 +21,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// MetricType представляет тип метрики.
-type MetricType int32
-
-const (
-	MetricType_GAUGE   MetricType = 0 // Мгновенное значение
-	MetricType_COUNTER MetricType = 1 // Накопительное значение
-)
-
-// Enum value maps for MetricType.
-var (
-	MetricType_name = map[int32]string{
-		0: "GAUGE",
-		1: "COUNTER",
-	}
-	MetricType_value = map[string]int32{
-		"GAUGE":   0,
-		"COUNTER": 1,
-	}
-)
-
-func (x MetricType) Enum() *MetricType {
-	p := new(MetricType)
-	*p = x
-	return p
-}
-
-func (x MetricType) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (MetricType) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_metrics_proto_enumTypes[0].Descriptor()
-}
-
-func (MetricType) Type() protoreflect.EnumType {
-	return &file_proto_metrics_proto_enumTypes[0]
-}
-
-func (x MetricType) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use MetricType.Descriptor instead.
-func (MetricType) EnumDescriptor() ([]byte, []int) {
-	return file_proto_metrics_proto_rawDescGZIP(), []int{0}
-}
-
 // MetricRequest представляет запрос на отправку метрики.
 type MetricRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`                              // Уникальный идентификатор метрики
-	Type          MetricType             `protobuf:"varint,2,opt,name=type,proto3,enum=metrics.MetricType" json:"type,omitempty"` // Тип метрики
-	Value         float64                `protobuf:"fixed64,3,opt,name=value,proto3" json:"value,omitempty"`                      // Значение для gauge (необязательное)
-	Delta         int64                  `protobuf:"varint,4,opt,name=delta,proto3" json:"delta,omitempty"`                       // Значение для counter (необязательное)
-	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`                          // Зашифрованные данные (опционально)
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`         // Уникальный идентификатор метрики
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`     // Тип метрики
+	Value         float64                `protobuf:"fixed64,3,opt,name=value,proto3" json:"value,omitempty"` // Значение для gauge (необязательное)
+	Delta         int64                  `protobuf:"varint,4,opt,name=delta,proto3" json:"delta,omitempty"`  // Значение для counter (необязательное)
+	Data          []byte                 `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`     // Зашифрованные данные (опционально)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -117,11 +70,11 @@ func (x *MetricRequest) GetId() string {
 	return ""
 }
 
-func (x *MetricRequest) GetType() MetricType {
+func (x *MetricRequest) GetType() string {
 	if x != nil {
 		return x.Type
 	}
-	return MetricType_GAUGE
+	return ""
 }
 
 func (x *MetricRequest) GetValue() float64 {
@@ -263,10 +216,10 @@ var File_proto_metrics_proto protoreflect.FileDescriptor
 
 const file_proto_metrics_proto_rawDesc = "" +
 	"\n" +
-	"\x13proto/metrics.proto\x12\ametrics\"\x88\x01\n" +
+	"\x13proto/metrics.proto\x12\ametrics\"s\n" +
 	"\rMetricRequest\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12'\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x13.metrics.MetricTypeR\x04type\x12\x14\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\x01R\x05value\x12\x14\n" +
 	"\x05delta\x18\x04 \x01(\x03R\x05delta\x12\x12\n" +
 	"\x04data\x18\x05 \x01(\fR\x04data\"h\n" +
@@ -276,11 +229,7 @@ const file_proto_metrics_proto_rawDesc = "" +
 	"\x04data\x18\x03 \x01(\fR\x04data\"D\n" +
 	"\x0eMetricResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*$\n" +
-	"\n" +
-	"MetricType\x12\t\n" +
-	"\x05GAUGE\x10\x00\x12\v\n" +
-	"\aCOUNTER\x10\x012O\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage2O\n" +
 	"\x0eMetricsService\x12=\n" +
 	"\vBatchUpdate\x12\x15.metrics.BatchRequest\x1a\x17.metrics.MetricResponseB+Z)github.com/dvkhr/metrix.git/internal/grpcb\x06proto3"
 
@@ -296,24 +245,21 @@ func file_proto_metrics_proto_rawDescGZIP() []byte {
 	return file_proto_metrics_proto_rawDescData
 }
 
-var file_proto_metrics_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_proto_metrics_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_proto_metrics_proto_goTypes = []any{
-	(MetricType)(0),        // 0: metrics.MetricType
-	(*MetricRequest)(nil),  // 1: metrics.MetricRequest
-	(*BatchRequest)(nil),   // 2: metrics.BatchRequest
-	(*MetricResponse)(nil), // 3: metrics.MetricResponse
+	(*MetricRequest)(nil),  // 0: metrics.MetricRequest
+	(*BatchRequest)(nil),   // 1: metrics.BatchRequest
+	(*MetricResponse)(nil), // 2: metrics.MetricResponse
 }
 var file_proto_metrics_proto_depIdxs = []int32{
-	0, // 0: metrics.MetricRequest.type:type_name -> metrics.MetricType
-	1, // 1: metrics.BatchRequest.metrics:type_name -> metrics.MetricRequest
-	2, // 2: metrics.MetricsService.BatchUpdate:input_type -> metrics.BatchRequest
-	3, // 3: metrics.MetricsService.BatchUpdate:output_type -> metrics.MetricResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	0, // 0: metrics.BatchRequest.metrics:type_name -> metrics.MetricRequest
+	1, // 1: metrics.MetricsService.BatchUpdate:input_type -> metrics.BatchRequest
+	2, // 2: metrics.MetricsService.BatchUpdate:output_type -> metrics.MetricResponse
+	2, // [2:3] is the sub-list for method output_type
+	1, // [1:2] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_proto_metrics_proto_init() }
@@ -326,14 +272,13 @@ func file_proto_metrics_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_metrics_proto_rawDesc), len(file_proto_metrics_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      0,
 			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_proto_metrics_proto_goTypes,
 		DependencyIndexes: file_proto_metrics_proto_depIdxs,
-		EnumInfos:         file_proto_metrics_proto_enumTypes,
 		MessageInfos:      file_proto_metrics_proto_msgTypes,
 	}.Build()
 	File_proto_metrics_proto = out.File

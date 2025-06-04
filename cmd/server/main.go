@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,12 +11,18 @@ import (
 	"syscall"
 	"time"
 
+	pb "github.com/dvkhr/metrix.git/internal/grpc/proto"
+	"github.com/dvkhr/metrix.git/internal/grpcserver"
+	"github.com/dvkhr/metrix.git/internal/service"
+
 	"github.com/dvkhr/metrix.git/internal/buildinfo"
 	"github.com/dvkhr/metrix.git/internal/config"
 	"github.com/dvkhr/metrix.git/internal/handlers"
 	"github.com/dvkhr/metrix.git/internal/logging"
 	"github.com/dvkhr/metrix.git/internal/routes"
 	"github.com/go-chi/chi/v5"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 
 	_ "net/http/pprof" // Импортируем pprof
 )
@@ -28,6 +35,7 @@ var (
 	cfg          config.ConfigServ
 	MetricServer *handlers.MetricsServer
 	server       *http.Server
+	grpcServer   *grpc.Server
 )
 
 // ./server -crypto-key= "/home/max/go/src/metrix/cmd/server/private_key.pem"
@@ -84,7 +92,8 @@ func logConfiguration(cfg config.ConfigServ) {
 		"  Restore: " + fmt.Sprintf("%v", cfg.Restore) + "\n" +
 		"  Key: " + logging.MaskSensitiveData(cfg.Key) + "\n" +
 		"  CryptoKey: " + logging.MaskSensitiveData(cfg.CryptoKey) + "\n" +
-		"  TrustedSubnet: " + cfg.TrustedSubnet,
+		"  TrustedSubnet: " + cfg.TrustedSubnet + "\n" +
+		"  GRPCAddress: " + cfg.GRPCAddress,
 	)
 }
 
@@ -100,6 +109,9 @@ func main() {
 		}
 	}()
 
+	if cfg.GRPCAddress != "" {
+		go startGRPCServer(cfg.GRPCAddress, MetricServer.MetricStorage, []byte(cfg.Key))
+	}
 	<-stop
 	logging.Logg.Info("Shutting down server gracefully")
 
@@ -108,6 +120,9 @@ func main() {
 
 	if err := server.Shutdown(ctx); err != nil {
 		logging.Logg.Error("Server shutdown error", "error", err)
+	}
+	if grpcServer != nil {
+		grpcServer.GracefulStop()
 	}
 
 	MetricServer.MetricStorage.FreeStorage()
@@ -119,5 +134,28 @@ func startPProf() {
 	fmt.Println("Starting pprof server on :9090")
 	if err := http.ListenAndServe("localhost:9090", nil); err != nil {
 		fmt.Println("Failed to start pprof server:", err)
+	}
+}
+
+func startGRPCServer(address string, metricStorage service.MetricStorage, signKey []byte) {
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		logging.Logg.Error("Failed to listen on gRPC address: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+
+	// Регистрация сервиса MetricsService
+	pb.RegisterMetricsServiceServer(grpcServer, &grpcserver.MetricsServer{
+		MetricStorage: metricStorage,
+		SignKey:       signKey,
+	})
+
+	// Включение Server Reflection
+	reflection.Register(grpcServer)
+
+	logging.Logg.Info("Starting gRPC server with reflection on %s", address)
+	if err := grpcServer.Serve(lis); err != nil {
+		logging.Logg.Error("Failed to start gRPC server: %v", err)
 	}
 }
