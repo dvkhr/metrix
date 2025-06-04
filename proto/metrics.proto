@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+package metrics;
+
+option go_package = "github.com/dvkhr/metrix.git/internal/grpc";
+
+
+// MetricRequest представляет запрос на отправку метрики.
+message MetricRequest {
+    string id = 1;         // Уникальный идентификатор метрики
+    string type = 2;   // Тип метрики
+    double value = 3;      // Значение для gauge (необязательное)
+    int64 delta = 4;       // Значение для counter (необязательное)
+    bytes data = 5;        // Зашифрованные данные (опционально)
+}
+
+// BatchRequest представляет запрос на пакетную отправку метрик.
+message BatchRequest {
+    repeated MetricRequest metrics = 1; // Массив метрик
+    string hash = 2;                    // Хеш для подписи данных (опционально)
+    bytes data = 3;                     // Зашифрованные и заархивированные данные
+}
+
+// MetricResponse представляет ответ на запрос.
+message MetricResponse {
+    bool success = 1;      // Успех операции
+    string message = 2;    // Сообщение об ошибке или успехе
+}
+
+// MetricsService предоставляет методы для работы с метриками.
+service MetricsService {
+    // BatchUpdate отправляет пакет метрик.
+    rpc BatchUpdate(BatchRequest) returns (MetricResponse);
+}

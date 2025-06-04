@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -13,6 +12,7 @@ import (
 
 type AgentConfig struct {
 	serverAddress  string
+	grpcAddress    string
 	reportInterval int64
 	pollInterval   int64
 	key            string
@@ -29,7 +29,7 @@ var (
 
 func (cfg *AgentConfig) check() error {
 	var err []error
-	if cfg.serverAddress == "" {
+	if cfg.serverAddress == "" && cfg.grpcAddress == "" {
 		err = append(err, ErrAddressEmpty)
 	}
 	if cfg.pollInterval <= 0 {
@@ -56,6 +56,7 @@ func (cfg *AgentConfig) parseFlags() error {
 	flag.StringVar(&cfg.СryptoKey, "crypto-key", "", "Path to the public key file for encryption")
 	flag.StringVar(&configFile, "c", "", "Path to the JSON configuration file")
 	flag.StringVar(&configFile, "config", "", "Path to the JSON configuration file")
+	flag.StringVar(&cfg.grpcAddress, "grpc", "", "Endpoint gRPC-server")
 
 	flag.Parse()
 
@@ -91,21 +92,13 @@ func (cfg *AgentConfig) parseFlags() error {
 
 	return cfg.check()
 }
-func newHTTPClient() *http.Client {
-	return &http.Client{
-		Timeout: 5 * time.Second,
-		Transport: &http.Transport{
-			MaxIdleConns:    10,
-			IdleConnTimeout: 30 * time.Second,
-		},
-	}
-}
 
 type ConfigFile struct {
 	Address        string `json:"address"`
 	ReportInterval string `json:"report_interval"`
 	PollInterval   string `json:"poll_interval"`
 	CryptoKey      string `json:"crypto_key"`
+	GRPCAddress    string `json:"grpc_address"`
 }
 
 func (cfg *AgentConfig) LoadFromFile(filePath string) error {
@@ -136,6 +129,10 @@ func (cfg *AgentConfig) LoadFromFile(filePath string) error {
 	}
 	if configFile.CryptoKey != "" && cfg.СryptoKey == "" {
 		cfg.СryptoKey = configFile.CryptoKey
+	}
+
+	if configFile.GRPCAddress != "" && cfg.grpcAddress == "" {
+		cfg.grpcAddress = configFile.GRPCAddress
 	}
 
 	return nil

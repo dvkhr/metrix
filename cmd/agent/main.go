@@ -62,7 +62,15 @@ func main() {
 		logging.Logg.Info("Public key successfully loaded")
 	}
 
-	cl := newHTTPClient()
+	var strategy sender.Strategy
+
+	if cfg.grpcAddress != "" {
+		strategy = sender.NewSendStrategyGRPC(cfg.grpcAddress)
+	} else if cfg.serverAddress != "" {
+		strategy = sender.NewSendStrategyHTTP(cfg.serverAddress)
+	} else {
+		logging.Logg.Error("no protocol is selected")
+	}
 
 	stopChan := make(chan bool)
 	defer close(stopChan)
@@ -75,8 +83,8 @@ func main() {
 
 	collectOSWorker := CollectWorker{wf: service.CollectMetricsOS, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
 	collectChWorker := CollectWorker{wf: service.CollectMetricsCh, poll: cfg.pollInterval, ctx: ctx, payloadChan: payloadChan, stopChan: stopChan}
-	sendMetricsWorker := SendWorker{wf: sender.SendMetrics, poll: cfg.reportInterval, ctx: ctx, payloadChan: payloadChan,
-		stopChan: stopChan, cl: cl, serverAddress: cfg.serverAddress, signKey: []byte(cfg.key), publicKey: publicKey}
+	sendMetricsWorker := SendWorker{wf: sender.Facade, poll: cfg.reportInterval, ctx: ctx, payloadChan: payloadChan,
+		stopChan: stopChan, signKey: []byte(cfg.key), publicKey: publicKey, strategy: strategy}
 
 	go collectOSWorker.StartCollecting()
 	go collectChWorker.StartCollecting()

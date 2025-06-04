@@ -104,3 +104,17 @@ func calculateServerSignature(body []byte, signKey []byte) [32]byte {
 	signBuf = append(signBuf, signKey...)
 	return sha256.Sum256(signBuf)
 }
+
+// signData создает цифровую подпись данных с использованием ключа подписи.
+func SignData(data []byte, signKey []byte) string {
+	if len(signKey) == 0 {
+		return ""
+	}
+
+	signBuf := append(data, ',')
+	signBuf = append(signBuf, signKey...)
+
+	sign := sha256.Sum256(signBuf)
+
+	return hex.EncodeToString(sign[:])
+}
